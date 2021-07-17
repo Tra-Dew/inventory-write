@@ -20,31 +20,81 @@ const (
 	ItemLocked ItemStatus = "Locked"
 )
 
+// ItemName ...
+type ItemName string
+
+// ItemDescription ...
+type ItemDescription string
+
+// ItemQuantity ...
+type ItemQuantity int64
+
 // Item ...
 type Item struct {
-	ID          string     `bson:"id"`
-	OwnerID     string     `bson:"owner_id"`
-	Name        string     `bson:"name"`
-	Status      ItemStatus `bson:"status"`
-	Description *string    `bson:"description"`
-	CreatedAt   time.Time  `bson:"created_at"`
-	UpdatedAt   time.Time  `bson:"updated_at"`
+	ID          string           `bson:"id"`
+	OwnerID     string           `bson:"owner_id"`
+	Name        ItemName         `bson:"name"`
+	Status      ItemStatus       `bson:"status"`
+	Description *ItemDescription `bson:"description"`
+	Quantity    ItemQuantity     `bson:"quantity"`
+	CreatedAt   time.Time        `bson:"created_at"`
+	UpdatedAt   time.Time        `bson:"updated_at"`
+}
+
+// UpdateItem ...
+type UpdateItem struct {
+	ID          string           `bson:"id"`
+	Name        ItemName         `bson:"name"`
+	Description *ItemDescription `bson:"description"`
+	Quantity    ItemQuantity     `bson:"quantity"`
+	UpdatedAt   time.Time        `bson:"updated_at"`
 }
 
 // Repository ...
 type Repository interface {
-	InsertMany(ctx context.Context, items []*Item) error
-	DeleteMany(ctx context.Context, userID string, ids []string) error
+	InsertBulk(ctx context.Context, items []*Item) error
+	UpdateBulk(ctx context.Context, userID string, items []*UpdateItem) error
+	DeleteBulk(ctx context.Context, userID string, ids []string) error
 }
 
 // Service ...
 type Service interface {
-	CreateItems(ctx context.Context, userID, correlationID string, req *CreateItemsRequest) (*CreateItemsResponse, error)
-	DeleteMany(ctx context.Context, userID, correlationID string, req *DeleteItemsRequest) error
+	CreateItems(ctx context.Context, userID, correlationID string, req *CreateItemsRequest) error
+	UpdateItems(ctx context.Context, userID, correlationID string, req *UpdateItemsRequest) error
+}
+
+// NewItemName ...
+func NewItemName(name string) (ItemName, error) {
+	name = strings.TrimSpace(name)
+	if len(name) < 3 {
+		return "", core.ErrValidationFailed
+	}
+
+	return ItemName(name), nil
+}
+
+// NewItemDescription ...
+func NewItemDescription(description *string) (*ItemDescription, error) {
+	if description == nil {
+		return nil, nil
+	}
+
+	itemDescription := ItemDescription(strings.TrimSpace(*description))
+
+	return &itemDescription, nil
+}
+
+// NewItemQuantity ...
+func NewItemQuantity(quantity int64) (ItemQuantity, error) {
+	if quantity <= 0 {
+		return 0, core.ErrValidationFailed
+	}
+
+	return ItemQuantity(quantity), nil
 }
 
 // NewItem ...
-func NewItem(id, ownerID, name string, description *string, status ItemStatus) (*Item, error) {
+func NewItem(id, ownerID, name string, description *string, quantity int64, status ItemStatus) (*Item, error) {
 
 	if id == "" {
 		return nil, core.ErrValidationFailed
@@ -54,14 +104,19 @@ func NewItem(id, ownerID, name string, description *string, status ItemStatus) (
 		return nil, core.ErrValidationFailed
 	}
 
-	name = strings.TrimSpace(name)
-	if len(name) < 3 {
-		return nil, core.ErrValidationFailed
+	itemName, err := NewItemName(name)
+	if err != nil {
+		return nil, err
 	}
 
-	if description != nil {
-		fixDescription := strings.TrimSpace(*description)
-		description = &fixDescription
+	itemDescription, err := NewItemDescription(description)
+	if err != nil {
+		return nil, err
+	}
+
+	ItemQuantity, err := NewItemQuantity(quantity)
+	if err != nil {
+		return nil, err
 	}
 
 	if status == "" {
@@ -71,10 +126,42 @@ func NewItem(id, ownerID, name string, description *string, status ItemStatus) (
 	return &Item{
 		ID:          id,
 		OwnerID:     ownerID,
-		Name:        name,
+		Name:        itemName,
 		Status:      status,
-		Description: description,
+		Description: itemDescription,
+		Quantity:    ItemQuantity,
 		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}, nil
+}
+
+// NewUpdateItem ...
+func NewUpdateItem(id, name string, description *string, quantity int64) (*UpdateItem, error) {
+
+	if id == "" {
+		return nil, core.ErrValidationFailed
+	}
+
+	itemName, err := NewItemName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	itemDescription, err := NewItemDescription(description)
+	if err != nil {
+		return nil, err
+	}
+
+	ItemQuantity, err := NewItemQuantity(quantity)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UpdateItem{
+		ID:          id,
+		Name:        itemName,
+		Description: itemDescription,
+		Quantity:    ItemQuantity,
 		UpdatedAt:   time.Now(),
 	}, nil
 }
