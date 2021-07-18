@@ -74,14 +74,14 @@ func NewItemName(name string) (ItemName, error) {
 }
 
 // NewItemDescription ...
-func NewItemDescription(description *string) (*ItemDescription, error) {
-	if description == nil {
-		return nil, nil
+func NewItemDescription(description *string) *ItemDescription {
+	if description == nil || *description == "" {
+		return nil
 	}
 
 	itemDescription := ItemDescription(strings.TrimSpace(*description))
 
-	return &itemDescription, nil
+	return &itemDescription
 }
 
 // NewItemQuantity ...
@@ -109,12 +109,7 @@ func NewItem(id, ownerID, name string, description *string, quantity int64, stat
 		return nil, err
 	}
 
-	itemDescription, err := NewItemDescription(description)
-	if err != nil {
-		return nil, err
-	}
-
-	ItemQuantity, err := NewItemQuantity(quantity)
+	itemQuantity, err := NewItemQuantity(quantity)
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +123,8 @@ func NewItem(id, ownerID, name string, description *string, quantity int64, stat
 		OwnerID:     ownerID,
 		Name:        itemName,
 		Status:      status,
-		Description: itemDescription,
-		Quantity:    ItemQuantity,
+		Description: NewItemDescription(description),
+		Quantity:    itemQuantity,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}, nil
@@ -147,12 +142,7 @@ func NewUpdateItem(id, name string, description *string, quantity int64) (*Updat
 		return nil, err
 	}
 
-	itemDescription, err := NewItemDescription(description)
-	if err != nil {
-		return nil, err
-	}
-
-	ItemQuantity, err := NewItemQuantity(quantity)
+	itemQuantity, err := NewItemQuantity(quantity)
 	if err != nil {
 		return nil, err
 	}
@@ -160,8 +150,8 @@ func NewUpdateItem(id, name string, description *string, quantity int64) (*Updat
 	return &UpdateItem{
 		ID:          id,
 		Name:        itemName,
-		Description: itemDescription,
-		Quantity:    ItemQuantity,
+		Description: NewItemDescription(description),
+		Quantity:    itemQuantity,
 		UpdatedAt:   time.Now(),
 	}, nil
 }

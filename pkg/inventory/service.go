@@ -63,12 +63,16 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 		}
 	}
 
-	if err := s.repository.UpdateBulk(ctx, userID, itemsToUpdate); err != nil {
-		return err
+	if len(itemsToUpdate) > 0 {
+		if err := s.repository.UpdateBulk(ctx, userID, itemsToUpdate); err != nil {
+			return err
+		}
 	}
 
-	if err := s.repository.DeleteBulk(ctx, userID, itemsToDelete); err != nil {
-		return err
+	if len(itemsToDelete) > 0 {
+		if err := s.repository.DeleteBulk(ctx, userID, itemsToDelete); err != nil {
+			return err
+		}
 	}
 
 	return nil

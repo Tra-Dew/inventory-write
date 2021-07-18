@@ -33,7 +33,7 @@ func (s *serviceTestSuite) SetupTest() {
 	s.service = inventory.NewService(s.repository)
 }
 
-func (s *serviceTestSuite) TestCreate() {
+func (s *serviceTestSuite) TestCreateItems() {
 
 	s.repository.On("InsertBulk").Return(nil)
 
@@ -54,7 +54,7 @@ func (s *serviceTestSuite) TestCreate() {
 	s.repository.AssertNumberOfCalls(s.T(), "InsertBulk", 1)
 }
 
-func (s *serviceTestSuite) TestCreateInvalidItem() {
+func (s *serviceTestSuite) TestCreateItemsInvalidItem() {
 
 	s.repository.On("InsertBulk").Return(nil)
 
@@ -77,6 +77,66 @@ func (s *serviceTestSuite) TestCreateInvalidItem() {
 
 	s.assert.ErrorIs(err, core.ErrValidationFailed)
 	s.repository.AssertNumberOfCalls(s.T(), "InsertBulk", 0)
+}
+
+func (s *serviceTestSuite) TestUpdateItems() {
+
+	s.repository.On("UpdateBulk").Return(nil)
+	s.repository.On("DeleteBulk").Return(nil)
+
+	correlationID := uuid.NewString()
+	userID := uuid.NewString()
+
+	req := &inventory.UpdateItemsRequest{
+		Items: []*inventory.UpdateItemModel{
+			{
+				ID:       uuid.NewString(),
+				Name:     faker.Name(),
+				Quantity: 5,
+			},
+			{
+				ID:       uuid.NewString(),
+				Name:     faker.Name(),
+				Quantity: 0,
+			},
+		},
+	}
+
+	err := s.service.UpdateItems(context.TODO(), userID, correlationID, req)
+
+	s.assert.NoError(err)
+	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 1)
+	s.repository.AssertNumberOfCalls(s.T(), "DeleteBulk", 1)
+}
+
+func (s *serviceTestSuite) TestUpdateItemsInvalidItem() {
+
+	s.repository.On("UpdateBulk").Return(nil)
+	s.repository.On("DeleteBulk").Return(nil)
+
+	correlationID := uuid.NewString()
+	userID := uuid.NewString()
+
+	req := &inventory.UpdateItemsRequest{
+		Items: []*inventory.UpdateItemModel{
+			{
+				ID:       uuid.NewString(),
+				Name:     faker.Name(),
+				Quantity: 5,
+			},
+			{
+				ID:       uuid.NewString(),
+				Name:     faker.Name(),
+				Quantity: -1,
+			},
+		},
+	}
+
+	err := s.service.UpdateItems(context.TODO(), userID, correlationID, req)
+
+	s.assert.ErrorIs(err, core.ErrValidationFailed)
+	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 0)
+	s.repository.AssertNumberOfCalls(s.T(), "DeleteBulk", 0)
 }
 
 func createItem() *inventory.CreateItemModel {

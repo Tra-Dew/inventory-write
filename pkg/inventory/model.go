@@ -22,5 +22,5 @@ type UpdateItemModel struct {
 
 // UpdateItemsRequest ...
 type UpdateItemsRequest struct {
-	Items []UpdateItemModel `json:"items"`
+	Items []*UpdateItemModel `json:"items"`
 }

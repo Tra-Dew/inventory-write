@@ -2,15 +2,19 @@ package cmd
 
 import (
 	"github.com/Tra-Dew/inventory-write/pkg/core"
+	"github.com/Tra-Dew/inventory-write/pkg/inventory"
+	"github.com/Tra-Dew/inventory-write/pkg/inventory/memory"
 )
 
 // Container contains all depencies from our api
 type Container struct {
 	Settings *core.Settings
 
-	// UserRepository users.Repository
-	// UserService    users.Service
-	// UserController users.Controller
+	Authenticate *core.Authenticate
+
+	InventoryRepository inventory.Repository
+	InventoryService    inventory.Service
+	InventoryController inventory.Controller
 }
 
 // NewContainer creates new instace of Container
@@ -20,9 +24,11 @@ func NewContainer(settings *core.Settings) *Container {
 
 	container.Settings = settings
 
-	// container.UserRepository = memory.NewRepository()
-	// container.UserService = users.NewService(settings, container.UserRepository)
-	// container.UserController = users.NewController(container.UserService)
+	container.Authenticate = core.NewAuthenticate(settings.JWT.Secret)
+
+	container.InventoryRepository = memory.NewRepository()
+	container.InventoryService = inventory.NewService(container.InventoryRepository)
+	container.InventoryController = inventory.NewController(settings, container.Authenticate, container.InventoryService)
 
 	return container
 }
@@ -30,7 +36,7 @@ func NewContainer(settings *core.Settings) *Container {
 // Controllers maps all routes and exposes them
 func (c *Container) Controllers() []core.Controller {
 	return []core.Controller{
-		// &c.UserController,
+		&c.InventoryController,
 	}
 }
 
