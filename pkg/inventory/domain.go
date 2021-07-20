@@ -14,6 +14,18 @@ type ItemStatus string
 const (
 	// ItemAvailable is set when an item is available to be traded
 	ItemAvailable ItemStatus = "Available"
+
+	// ItemPendingCreateDispatch is set when an item has been created
+	// but has not yet dispached an event
+	ItemPendingCreateDispatch ItemStatus = "PendingCreateDispatch"
+
+	// ItemPendingUpdateDispatch is set when an item has been updated
+	// but has not yet dispached an event
+	ItemPendingUpdateDispatch ItemStatus = "PendingUpdateDispatch"
+
+	// ItemPendingLockDispatch is set when an item has been locked
+	// but has not yet dispached an event
+	ItemPendingLockDispatch ItemStatus = "PendingLockDispatch"
 )
 
 // ItemName ...
@@ -41,9 +53,10 @@ type Item struct {
 // Repository ...
 type Repository interface {
 	InsertBulk(ctx context.Context, items []*Item) error
-	UpdateBulk(ctx context.Context, userID string, items []*Item) error
+	UpdateBulk(ctx context.Context, userID *string, items []*Item) error
 	DeleteBulk(ctx context.Context, userID string, ids []string) error
 	Get(ctx context.Context, userID string, ids []string) ([]*Item, error)
+	GetByStatus(ctx context.Context, status ItemStatus) ([]*Item, error)
 }
 
 // Service ...
@@ -147,6 +160,12 @@ func (item *Item) Update(name string, description *string, quantity int64) error
 	return nil
 }
 
+// UpdateStatus ...
+func (item *Item) UpdateStatus(status ItemStatus) {
+	item.Status = status
+	item.UpdatedAt = time.Now()
+}
+
 // Lock ...
 func (item *Item) Lock(quantity int64) error {
 
@@ -162,6 +181,7 @@ func (item *Item) Lock(quantity int64) error {
 	}
 
 	item.LockedQuantity = lockedQuantity
+	item.Status = ItemPendingLockDispatch
 	item.UpdatedAt = time.Now()
 
 	return nil

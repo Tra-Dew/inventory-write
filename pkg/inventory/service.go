@@ -67,7 +67,7 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 		}
 	}
 
-	if err := s.repository.UpdateBulk(ctx, userID, items); err != nil {
+	if err := s.repository.UpdateBulk(ctx, &userID, items); err != nil {
 		return err
 	}
 
@@ -99,7 +99,7 @@ func (s *service) LockItems(ctx context.Context, userID, correlationID string, r
 		}
 	}
 
-	if err := s.repository.UpdateBulk(ctx, userID, items); err != nil {
+	if err := s.repository.UpdateBulk(ctx, &userID, items); err != nil {
 		return err
 	}
 
