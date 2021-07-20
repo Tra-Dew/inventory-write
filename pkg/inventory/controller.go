@@ -33,6 +33,7 @@ func (c *Controller) RegisterRoutes(r *gin.RouterGroup) {
 
 		inventory.POST("", c.post)
 		inventory.PUT("", c.put)
+		inventory.DELETE("", c.delete)
 	}
 }
 
@@ -64,9 +65,25 @@ func (c *Controller) put(ctx *gin.Context) {
 		return
 	}
 
-	err := c.service.UpdateItems(ctx, userID, correlationID, req)
+	if err := c.service.UpdateItems(ctx, userID, correlationID, req); err != nil {
+		core.HandleRestError(ctx, err)
+		return
+	}
 
-	if err != nil {
+	ctx.Status(http.StatusNoContent)
+}
+
+func (c *Controller) delete(ctx *gin.Context) {
+	req := new(DeleteItemsRequest)
+	correlationID := ctx.GetString("X-Correlation-ID")
+	userID := ctx.GetString("user_id")
+
+	if err := ctx.ShouldBindJSON(req); err != nil {
+		core.HandleRestError(ctx, core.ErrMalformedJSON)
+		return
+	}
+
+	if err := c.service.DeleteItems(ctx, userID, correlationID, req); err != nil {
 		core.HandleRestError(ctx, err)
 		return
 	}

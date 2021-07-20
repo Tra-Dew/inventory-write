@@ -21,7 +21,6 @@ func NewService(repository Repository) Service {
 // CreateItems ...
 func (s *service) CreateItems(ctx context.Context, userID, correlationID string, req *CreateItemsRequest) error {
 	items := make([]*Item, len(req.Items))
-	ids := make([]string, len(req.Items))
 
 	for i, it := range req.Items {
 		item, err := NewItem(uuid.NewString(), userID, it.Name, it.Description, it.Quantity, ItemAvailable)
@@ -30,7 +29,6 @@ func (s *service) CreateItems(ctx context.Context, userID, correlationID string,
 			return err
 		}
 
-		ids[i] = item.ID
 		items[i] = item
 	}
 
@@ -45,34 +43,76 @@ func (s *service) CreateItems(ctx context.Context, userID, correlationID string,
 // UpdateItems ...
 func (s *service) UpdateItems(ctx context.Context, userID, correlationID string, req *UpdateItemsRequest) error {
 
-	var itemsToUpdate []*UpdateItem
-	var itemsToDelete []string
+	itemsToUpdate := make(map[string]*UpdateItemModel, len(req.Items))
+	ids := make([]string, len(req.Items))
 
-	for _, item := range req.Items {
-
-		if item.Quantity == 0 {
-			itemsToDelete = append(itemsToDelete, item.ID)
-		} else {
-
-			updatedItem, err := NewUpdateItem(item.ID, item.Name, item.Description, item.Quantity)
-			if err != nil {
-				return err
-			}
-
-			itemsToUpdate = append(itemsToUpdate, updatedItem)
-		}
+	for i, item := range req.Items {
+		ids[i] = item.ID
+		itemsToUpdate[item.ID] = item
 	}
 
-	if len(itemsToUpdate) > 0 {
-		if err := s.repository.UpdateBulk(ctx, userID, itemsToUpdate); err != nil {
+	items, err := s.repository.Get(ctx, userID, ids)
+
+	if err != nil {
+		return err
+	}
+
+	for _, item := range items {
+		itemToUpdate := itemsToUpdate[item.ID]
+
+		err := item.Update(itemToUpdate.Name, itemToUpdate.Description, itemToUpdate.Quantity)
+
+		if err != nil {
 			return err
 		}
 	}
 
-	if len(itemsToDelete) > 0 {
-		if err := s.repository.DeleteBulk(ctx, userID, itemsToDelete); err != nil {
+	if err := s.repository.UpdateBulk(ctx, userID, items); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LockItems ...
+func (s *service) LockItems(ctx context.Context, userID, correlationID string, req *LockItemsRequest) error {
+
+	itemsToLock := make(map[string]*LockItemModel, len(req.Items))
+	ids := make([]string, len(req.Items))
+
+	for i, item := range req.Items {
+		ids[i] = item.ID
+		itemsToLock[item.ID] = item
+	}
+
+	items, err := s.repository.Get(ctx, userID, ids)
+
+	if err != nil {
+		return err
+	}
+
+	for _, item := range items {
+		itemToUpdate := itemsToLock[item.ID]
+
+		if err := item.Lock(itemToUpdate.Quantity); err != nil {
 			return err
 		}
+	}
+
+	if err := s.repository.UpdateBulk(ctx, userID, items); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteItems ...
+func (s *service) DeleteItems(ctx context.Context, userID, correlationID string, req *DeleteItemsRequest) error {
+
+	err := s.repository.DeleteBulk(ctx, userID, req.IDs)
+
+	if err != nil {
+		return err
 	}
 
 	return nil

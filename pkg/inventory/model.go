@@ -24,3 +24,19 @@ type UpdateItemModel struct {
 type UpdateItemsRequest struct {
 	Items []*UpdateItemModel `json:"items"`
 }
+
+// LockItemModel ...
+type LockItemModel struct {
+	ID       string
+	Quantity int64
+}
+
+// LockItemsRequest ...
+type LockItemsRequest struct {
+	Items []*LockItemModel
+}
+
+// DeleteItemsRequest ...
+type DeleteItemsRequest struct {
+	IDs []string `json:"items"`
+}

@@ -3,6 +3,7 @@ package inventory_test
 import (
 	"testing"
 
+	"github.com/Tra-Dew/inventory-write/pkg/core"
 	"github.com/Tra-Dew/inventory-write/pkg/inventory"
 	"github.com/bxcodec/faker/v3"
 	"github.com/google/uuid"
@@ -69,4 +70,79 @@ func (s *domainTestSuite) TestNewItemInvalidQuantity() {
 
 	s.assert.Error(err)
 	s.assert.Nil(item)
+}
+
+func (s *domainTestSuite) TestUpdate() {
+	name := faker.Name()
+	description := faker.Sentence()
+	quantity := int64(5)
+
+	item, err := inventory.NewItem(
+		uuid.NewString(),
+		uuid.NewString(),
+		name,
+		&description,
+		quantity,
+		inventory.ItemAvailable,
+	)
+
+	s.assert.NoError(err)
+	s.assert.NotNil(item)
+
+	name = "new name"
+	description = "new description"
+	quantity = 7
+	err = item.Update("new name", &description, quantity)
+
+	s.assert.NoError(err)
+	s.assert.Equal(name, string(item.Name))
+	s.assert.Equal(description, string(*item.Description))
+	s.assert.Equal(quantity, int64(item.TotalQuantity))
+}
+
+func (s *domainTestSuite) TestLock() {
+	description := faker.Sentence()
+	quantity := int64(5)
+
+	item, err := inventory.NewItem(
+		uuid.NewString(),
+		uuid.NewString(),
+		faker.Name(),
+		&description,
+		quantity,
+		inventory.ItemAvailable,
+	)
+
+	s.assert.NoError(err)
+	s.assert.NotNil(item)
+
+	lockQuantity := int64(3)
+	err = item.Lock(lockQuantity)
+
+	s.assert.NoError(err)
+	s.assert.Equal(quantity, int64(item.TotalQuantity))
+	s.assert.Equal(lockQuantity, int64(item.LockedQuantity))
+}
+
+func (s *domainTestSuite) TestLockNotEnoughtItemsToLock() {
+	description := faker.Sentence()
+	quantity := int64(5)
+
+	item, err := inventory.NewItem(
+		uuid.NewString(),
+		uuid.NewString(),
+		faker.Name(),
+		&description,
+		quantity,
+		inventory.ItemAvailable,
+	)
+
+	s.assert.NoError(err)
+	s.assert.NotNil(item)
+
+	err = item.Lock(7)
+
+	s.assert.ErrorIs(err, core.ErrNotEnoughtItemsToLock)
+	s.assert.Equal(quantity, int64(item.TotalQuantity))
+	s.assert.Equal(int64(0), int64(item.LockedQuantity))
 }

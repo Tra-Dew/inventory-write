@@ -27,13 +27,13 @@ func (r *repositoryInMemory) InsertBulk(ctx context.Context, items []*inventory.
 }
 
 // UpdateBulk ...
-func (r *repositoryInMemory) UpdateBulk(ctx context.Context, userID string, items []*inventory.UpdateItem) error {
+func (r *repositoryInMemory) UpdateBulk(ctx context.Context, userID string, items []*inventory.Item) error {
 	for _, item := range items {
 		currentItem := r.data[item.ID]
 		if currentItem != nil && currentItem.OwnerID == userID {
 			currentItem.Name = item.Name
 			currentItem.Description = item.Description
-			currentItem.Quantity = item.Quantity
+			currentItem.TotalQuantity = item.TotalQuantity
 			currentItem.UpdatedAt = item.UpdatedAt
 		}
 	}
@@ -51,4 +51,18 @@ func (r *repositoryInMemory) DeleteBulk(ctx context.Context, userID string, ids 
 	}
 
 	return nil
+}
+
+// Get ...
+func (r *repositoryInMemory) Get(ctx context.Context, userID string, ids []string) ([]*inventory.Item, error) {
+	var items []*inventory.Item
+
+	for _, id := range ids {
+		item := r.data[id]
+		if item != nil && item.OwnerID == userID {
+			items = append(items, item)
+		}
+	}
+
+	return items, nil
 }

@@ -31,6 +31,10 @@ var (
 
 	// ErrInvalidCredentials returned when the password or email is invalid
 	ErrInvalidCredentials = newError("invalid-credentials")
+
+	// ErrNotEnoughtItemsToLock returned when trying to lock a bigger quantity
+	// than the total quantity
+	ErrNotEnoughtItemsToLock = newError("not-enought-items-to-lock")
 )
 
 // RestError used as a Rest api call error
