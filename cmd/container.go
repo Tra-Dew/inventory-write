@@ -68,7 +68,9 @@ func (c *Container) Controllers() []core.Controller {
 }
 
 // Close terminates every opened resource
-func (c *Container) Close() {}
+func (c *Container) Close() {
+	c.DBConnPool.Close()
+}
 
 func connectPostgres(conf *core.PostgresConfig) *pgxpool.Pool {
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s", conf.User, conf.Password, conf.Host, conf.Port, conf.Database)
