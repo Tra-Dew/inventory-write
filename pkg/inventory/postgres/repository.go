@@ -47,13 +47,20 @@ func (r *repositoryPostgres) InsertBulk(ctx context.Context, items []*inventory.
 	}
 
 	tx, _ := r.pool.Begin(ctx)
+
 	res := tx.SendBatch(ctx, batch)
-
-	defer res.Close()
-
 	_, err := res.Exec()
+	res.Close()
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // UpdateBulk ...
@@ -64,7 +71,7 @@ func (r *repositoryPostgres) UpdateBulk(ctx context.Context, userID *string, ite
 	filter := "id = $1"
 
 	if userID != nil {
-		filter = filter + " and and owner_id = $2"
+		filter = filter + " and owner_id = $2"
 	}
 
 	stmt := fmt.Sprintf(`
@@ -85,7 +92,7 @@ func (r *repositoryPostgres) UpdateBulk(ctx context.Context, userID *string, ite
 		batch.Queue(
 			stmt,
 			i.ID,
-			i.OwnerID,
+			userID,
 			i.Name,
 			i.Status,
 			i.Description,
@@ -97,29 +104,104 @@ func (r *repositoryPostgres) UpdateBulk(ctx context.Context, userID *string, ite
 	}
 
 	tx, _ := r.pool.Begin(ctx)
+
 	res := tx.SendBatch(ctx, batch)
-
-	defer res.Close()
-
 	_, err := res.Exec()
+	res.Close()
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DeleteBulk ...
 func (r *repositoryPostgres) DeleteBulk(ctx context.Context, userID string, ids []string) error {
+
+	stmt := `
+		delete from items
+		where
+			id = any($1) and owner_id = $2
+	`
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, stmt, ids, userID); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 // Get ...
 func (r *repositoryPostgres) Get(ctx context.Context, userID string, ids []string) ([]*inventory.Item, error) {
+	var items []*inventory.Item
 
-	return nil, nil
+	rows, err := r.pool.Query(ctx, `select * from items where id = any($1)`, ids)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		item := new(inventory.Item)
+		rows.Scan(
+			&item.ID,
+			&item.OwnerID,
+			&item.Name,
+			&item.Status,
+			&item.Description,
+			&item.TotalQuantity,
+			&item.LockedQuantity,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		items = append(items, item)
+	}
+
+	return items, nil
 }
 
 // GetByStatus ...
 func (r *repositoryPostgres) GetByStatus(ctx context.Context, status inventory.ItemStatus) ([]*inventory.Item, error) {
+	var items []*inventory.Item
 
-	return nil, nil
+	rows, err := r.pool.Query(ctx, `select * from items where status = $1`, status)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		item := new(inventory.Item)
+		rows.Scan(
+			&item.ID,
+			&item.OwnerID,
+			&item.Name,
+			&item.Status,
+			&item.Description,
+			&item.TotalQuantity,
+			&item.LockedQuantity,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		)
+		items = append(items, item)
+	}
+
+	return items, nil
 }

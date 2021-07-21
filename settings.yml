@@ -7,6 +7,12 @@ sqs:
 sns:
   region: us-west2
   endpoint: http://localhost:4566
+postgres:
+  host: localhost
+  user: postgres
+  password: admin
+  port: 5432
+  database: inventory
 events:
   items-lock-requested: items-lock-requested
   items-lock-completed: items-lock-completed

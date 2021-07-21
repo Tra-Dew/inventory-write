@@ -38,5 +38,5 @@ type LockItemsRequest struct {
 
 // DeleteItemsRequest ...
 type DeleteItemsRequest struct {
-	IDs []string `json:"items"`
+	IDs []string `json:"ids"`
 }

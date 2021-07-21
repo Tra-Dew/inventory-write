@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+  postgresdb:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: "admin"
+      POSTGRES_DB: "inventory"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app
+
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  pgdata:
