@@ -46,15 +46,18 @@ func (r *repositoryPostgres) InsertBulk(ctx context.Context, items []*inventory.
 		)
 	}
 
-	tx, _ := r.pool.Begin(ctx)
-
-	res := tx.SendBatch(ctx, batch)
-	_, err := res.Exec()
-	res.Close()
-
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
+
+	res := tx.SendBatch(ctx, batch)
+
+	if _, err := res.Exec(); err != nil {
+		return err
+	}
+
+	res.Close()
 
 	if err := tx.Commit(ctx); err != nil {
 		return err
@@ -68,31 +71,29 @@ func (r *repositoryPostgres) UpdateBulk(ctx context.Context, userID *string, ite
 
 	batch := &pgx.Batch{}
 
-	filter := "id = $1"
+	var filter string
 
 	if userID != nil {
-		filter = filter + " and owner_id = $2"
+		filter = "and owner_id = $9"
 	}
 
 	stmt := fmt.Sprintf(`
 		update items
 		set
-			name = $3,
-			status = $4,
-			description = $5,
-			total_quantity = $6,
-			locked_quantity = $7,
-			created_at = $8,
-			updated_at = $9
+			name = $1,
+			status = $2,
+			description = $3,
+			total_quantity = $4,
+			locked_quantity = $5,
+			created_at = $6,
+			updated_at = $7
 		where
+			id = $8
 			%s
 	`, filter)
 
 	for _, i := range items {
-		batch.Queue(
-			stmt,
-			i.ID,
-			userID,
+		args := []interface{}{
 			i.Name,
 			i.Status,
 			i.Description,
@@ -100,18 +101,28 @@ func (r *repositoryPostgres) UpdateBulk(ctx context.Context, userID *string, ite
 			i.LockedQuantity,
 			i.CreatedAt,
 			i.UpdatedAt,
-		)
+			i.ID,
+		}
+
+		if userID != nil {
+			args = append(args, userID)
+		}
+
+		batch.Queue(stmt, args...)
 	}
 
-	tx, _ := r.pool.Begin(ctx)
-
-	res := tx.SendBatch(ctx, batch)
-	_, err := res.Exec()
-	res.Close()
-
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
+
+	res := tx.SendBatch(ctx, batch)
+
+	if _, err := res.Exec(); err != nil {
+		return err
+	}
+
+	res.Close()
 
 	if err := tx.Commit(ctx); err != nil {
 		return err

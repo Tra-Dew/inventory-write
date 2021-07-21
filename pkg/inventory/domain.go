@@ -152,9 +152,14 @@ func (item *Item) Update(name string, description *string, quantity int64) error
 		return err
 	}
 
+	if item.LockedQuantity > itemQuantity {
+		return core.ErrNotEnoughtItemsToLock
+	}
+
 	item.Name = itemName
 	item.Description = itemDescription
 	item.TotalQuantity = itemQuantity
+	item.Status = ItemPendingUpdateDispatch
 	item.UpdatedAt = time.Now()
 
 	return nil

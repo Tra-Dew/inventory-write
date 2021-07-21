@@ -25,7 +25,14 @@ func (s *service) CreateItems(ctx context.Context, userID, correlationID string,
 	items := make([]*Item, len(req.Items))
 
 	for i, it := range req.Items {
-		item, err := NewItem(uuid.NewString(), userID, it.Name, it.Description, it.Quantity, ItemAvailable)
+		item, err := NewItem(
+			uuid.NewString(),
+			userID,
+			it.Name,
+			it.Description,
+			it.Quantity,
+			ItemPendingCreateDispatch,
+		)
 
 		if err != nil {
 			return err
