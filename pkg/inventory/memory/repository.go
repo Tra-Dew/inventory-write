@@ -67,7 +67,7 @@ func (r *repositoryInMemory) Get(ctx context.Context, userID string, ids []strin
 	return items, nil
 }
 
-// Get ...
+// GetByStatus ...
 func (r *repositoryInMemory) GetByStatus(ctx context.Context, status inventory.ItemStatus) ([]*inventory.Item, error) {
 	var items []*inventory.Item
 

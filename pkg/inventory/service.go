@@ -4,10 +4,12 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type service struct {
 	repository Repository
+	pool       *pgxpool.Pool
 }
 
 // NewService ...
