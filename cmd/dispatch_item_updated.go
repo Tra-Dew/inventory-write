@@ -30,7 +30,15 @@ func DispatchItemUpdated(command *cobra.Command, args []string) {
 		logrus.
 			WithError(err).
 			WithFields(fields).
-			Error("error while getting items by statys")
+			Error("error while getting items by status")
+		return
+	}
+
+	lenItems := len(items)
+
+	logrus.WithFields(fields).Infof("%d new items to publish", lenItems)
+
+	if lenItems < 1 {
 		return
 	}
 
