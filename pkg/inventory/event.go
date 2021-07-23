@@ -17,8 +17,9 @@ type ItemsLockRequestedEvent struct {
 
 // ItemLockCompletedEvent ...
 type ItemLockCompletedEvent struct {
-	ID       string `json:"id"`
-	Quantity int64  `json:"quantity"`
+	ID        string    `json:"id"`
+	Quantity  int64     `json:"quantity"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // ItemsLockCompletedEvent ...
@@ -28,13 +29,12 @@ type ItemsLockCompletedEvent struct {
 
 // ItemCreatedEvent ...
 type ItemCreatedEvent struct {
-	ID             string    `json:"id"`
-	OwnerID        string    `json:"owner_id"`
-	Name           string    `json:"name"`
-	Description    *string   `json:"description"`
-	TotalQuantity  int64     `json:"total_quantity"`
-	LockedQuantity int64     `json:"locked_quantity"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID            string    `json:"id"`
+	OwnerID       string    `json:"owner_id"`
+	Name          string    `json:"name"`
+	Description   *string   `json:"description"`
+	TotalQuantity int64     `json:"total_quantity"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // ItemsCreatedEvent ...
@@ -64,8 +64,9 @@ func ParseItemsToItemsLockCompletedEvent(s []*Item) *ItemsLockCompletedEvent {
 
 	for i, item := range s {
 		items[i] = &ItemLockCompletedEvent{
-			ID:       item.ID,
-			Quantity: int64(item.LockedQuantity),
+			ID:        item.ID,
+			Quantity:  int64(item.LockedQuantity),
+			UpdatedAt: item.UpdatedAt,
 		}
 	}
 
@@ -79,13 +80,12 @@ func ParseItemsToItemsCreatedEvent(s []*Item) *ItemsCreatedEvent {
 
 	for i, item := range s {
 		items[i] = &ItemCreatedEvent{
-			ID:             item.ID,
-			OwnerID:        item.OwnerID,
-			Name:           string(item.Name),
-			Description:    (*string)(item.Description),
-			TotalQuantity:  int64(item.TotalQuantity),
-			LockedQuantity: int64(item.LockedQuantity),
-			CreatedAt:      item.CreatedAt,
+			ID:            item.ID,
+			OwnerID:       item.OwnerID,
+			Name:          string(item.Name),
+			Description:   (*string)(item.Description),
+			TotalQuantity: int64(item.TotalQuantity),
+			CreatedAt:     item.CreatedAt,
 		}
 	}
 
