@@ -36,4 +36,5 @@ type Events struct {
 	ItemsUpdated       string `yaml:"items-updated"`
 	ItemsLockRequested string `yaml:"items-lock-requested"`
 	ItemsLockCompleted string `yaml:"items-lock-completed"`
+	TradeAccepted      string `yaml:"trade-accepted"`
 }

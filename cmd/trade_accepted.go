@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ItemsLockRequested ...
-func ItemsLockRequested(command *cobra.Command, args []string) {
+// TradeAccepted ...
+func TradeAccepted(command *cobra.Command, args []string) {
 	settings := new(core.Settings)
 
 	err := core.FromYAML(command.Flag("settings").Value.String(), settings)
@@ -26,17 +26,16 @@ func ItemsLockRequested(command *cobra.Command, args []string) {
 	consumer := core.NewMessageBrokerSubscriber(
 		core.WithSessionSNS(container.SNS),
 		core.WithSessionSQS(container.SQS),
-		core.WithSubscriberID(settings.Events.ItemsLockRequested),
+		core.WithSubscriberID(settings.Events.TradeAccepted),
 		core.WithMaxRetries(3),
-		core.WithType(reflect.TypeOf(inventory.ItemsLockRequestedEvent{})),
-		core.WithTopicID(settings.Events.ItemsLockRequested),
+		core.WithType(reflect.TypeOf(inventory.TradeOfferAcceptedEvent{})),
+		core.WithTopicID(settings.Events.TradeAccepted),
 		core.WithHandler(func(payload interface{}) error {
-			message := payload.(*inventory.ItemsLockRequestedEvent)
+			message := payload.(*inventory.TradeOfferAcceptedEvent)
 
 			fields := logrus.Fields{
-				"owner_id":       message.OwnerID,
-				"correlation_id": message.CorrelationID,
-				"event":          settings.Events.ItemsLockRequested,
+				"trade_id": message.ID,
+				"owner_id": message.OwnerID,
 			}
 
 			logrus.
@@ -45,30 +44,42 @@ func ItemsLockRequested(command *cobra.Command, args []string) {
 
 			ctx := context.Background()
 
-			items := make([]*inventory.LockItemModel, len(message.Items))
+			offeredItems := make([]*inventory.TradeItemModel, len(message.OfferedItems))
 
-			for i, item := range message.Items {
-				items[i] = &inventory.LockItemModel{
+			for i, item := range message.WantedItems {
+				offeredItems[i] = &inventory.TradeItemModel{
 					ID:       item.ID,
 					Quantity: item.Quantity,
 				}
 			}
 
-			req := &inventory.LockItemsRequest{Items: items}
+			wantedItems := make([]*inventory.TradeItemModel, len(message.WantedItems))
 
-			err := container.InventoryService.LockItems(ctx, message.OwnerID, req)
+			for i, item := range message.WantedItems {
+				wantedItems[i] = &inventory.TradeItemModel{
+					ID:       item.ID,
+					Quantity: item.Quantity,
+				}
+			}
 
-			if err != nil {
+			req := &inventory.TradeItemsRequest{
+				OfferedItems: offeredItems,
+				WantedItems:  wantedItems,
+			}
+
+			if err := container.InventoryService.TradeItems(ctx, req); err != nil {
 				logrus.
 					WithError(err).
 					WithFields(fields).
-					Info("error while locking items")
+					Info("error while trading items")
 				return err
 			}
 
 			logrus.
 				WithFields(fields).
 				Info("items locked successfully")
+
+			//TODO: dispatch trade completed event
 
 			return nil
 		}))

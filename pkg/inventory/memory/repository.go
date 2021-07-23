@@ -54,12 +54,12 @@ func (r *repositoryInMemory) DeleteBulk(ctx context.Context, userID string, ids 
 }
 
 // Get ...
-func (r *repositoryInMemory) Get(ctx context.Context, userID string, ids []string) ([]*inventory.Item, error) {
+func (r *repositoryInMemory) Get(ctx context.Context, userID *string, ids []string) ([]*inventory.Item, error) {
 	var items []*inventory.Item
 
 	for _, id := range ids {
 		item := r.data[id]
-		if item != nil && item.OwnerID == userID {
+		if item != nil && item.OwnerID == *userID {
 			items = append(items, item)
 		}
 	}

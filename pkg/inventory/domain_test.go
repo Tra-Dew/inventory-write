@@ -117,11 +117,11 @@ func (s *domainTestSuite) TestLock() {
 	s.assert.NotNil(item)
 
 	lockQuantity := int64(3)
-	err = item.Lock(lockQuantity)
+	err = item.Lock(uuid.NewString(), lockQuantity)
 
 	s.assert.NoError(err)
 	s.assert.Equal(quantity, int64(item.TotalQuantity))
-	s.assert.Equal(lockQuantity, int64(item.LockedQuantity))
+	s.assert.Equal(lockQuantity, int64(item.GetLockedQuantity()))
 }
 
 func (s *domainTestSuite) TestLockNotEnoughtItemsToLock() {
@@ -140,9 +140,9 @@ func (s *domainTestSuite) TestLockNotEnoughtItemsToLock() {
 	s.assert.NoError(err)
 	s.assert.NotNil(item)
 
-	err = item.Lock(7)
+	err = item.Lock(uuid.NewString(), 7)
 
 	s.assert.ErrorIs(err, core.ErrNotEnoughtItemsToLock)
 	s.assert.Equal(quantity, int64(item.TotalQuantity))
-	s.assert.Equal(int64(0), int64(item.LockedQuantity))
+	s.assert.Equal(int64(0), int64(item.GetLockedQuantity()))
 }

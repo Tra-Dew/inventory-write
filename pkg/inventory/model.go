@@ -33,7 +33,21 @@ type LockItemModel struct {
 
 // LockItemsRequest ...
 type LockItemsRequest struct {
-	Items []*LockItemModel
+	LockedBy string
+	Items    []*LockItemModel
+}
+
+// TradeItemModel ...
+type TradeItemModel struct {
+	ID       string
+	Quantity int64
+}
+
+// TradeItemsRequest ...
+type TradeItemsRequest struct {
+	TradeID      string
+	OfferedItems []*TradeItemModel
+	WantedItems  []*TradeItemModel
 }
 
 // DeleteItemsRequest ...

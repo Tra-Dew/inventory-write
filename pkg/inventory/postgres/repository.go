@@ -40,7 +40,7 @@ func (r *repositoryPostgres) InsertBulk(ctx context.Context, items []*inventory.
 			i.Status,
 			i.Description,
 			i.TotalQuantity,
-			i.LockedQuantity,
+			// i.LockedQuantity,
 			i.CreatedAt,
 			i.UpdatedAt,
 		)
@@ -98,7 +98,7 @@ func (r *repositoryPostgres) UpdateBulk(ctx context.Context, userID *string, ite
 			i.Status,
 			i.Description,
 			i.TotalQuantity,
-			i.LockedQuantity,
+			// i.LockedQuantity,
 			i.CreatedAt,
 			i.UpdatedAt,
 			i.ID,
@@ -156,7 +156,7 @@ func (r *repositoryPostgres) DeleteBulk(ctx context.Context, userID string, ids 
 }
 
 // Get ...
-func (r *repositoryPostgres) Get(ctx context.Context, userID string, ids []string) ([]*inventory.Item, error) {
+func (r *repositoryPostgres) Get(ctx context.Context, userID *string, ids []string) ([]*inventory.Item, error) {
 	var items []*inventory.Item
 
 	rows, err := r.pool.Query(ctx, `select * from items where id = any($1)`, ids)
@@ -176,7 +176,7 @@ func (r *repositoryPostgres) Get(ctx context.Context, userID string, ids []strin
 			&item.Status,
 			&item.Description,
 			&item.TotalQuantity,
-			&item.LockedQuantity,
+			// &item.LockedQuantity,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		)
@@ -207,7 +207,7 @@ func (r *repositoryPostgres) GetByStatus(ctx context.Context, status inventory.I
 			&item.Status,
 			&item.Description,
 			&item.TotalQuantity,
-			&item.LockedQuantity,
+			// &item.LockedQuantity,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		)

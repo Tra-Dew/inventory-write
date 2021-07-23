@@ -171,7 +171,6 @@ func (s *serviceTestSuite) TestUpdateItemsInvalidItem() {
 
 func (s *serviceTestSuite) TestLockItems() {
 
-	correlationID := uuid.NewString()
 	userID := uuid.NewString()
 
 	items := []*inventory.Item{
@@ -205,7 +204,7 @@ func (s *serviceTestSuite) TestLockItems() {
 
 	req := &inventory.LockItemsRequest{Items: itemModels}
 
-	err := s.service.LockItems(s.ctx, userID, correlationID, req)
+	err := s.service.LockItems(s.ctx, userID, req)
 
 	s.assert.NoError(err)
 	s.repository.AssertNumberOfCalls(s.T(), "Get", 1)

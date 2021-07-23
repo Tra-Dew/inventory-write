@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 
+	"github.com/Tra-Dew/inventory-write/pkg/core"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -60,7 +61,7 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 		itemsToUpdate[item.ID] = item
 	}
 
-	items, err := s.repository.Get(ctx, userID, ids)
+	items, err := s.repository.Get(ctx, &userID, ids)
 
 	if err != nil {
 		return err
@@ -84,7 +85,7 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 }
 
 // LockItems ...
-func (s *service) LockItems(ctx context.Context, userID, correlationID string, req *LockItemsRequest) error {
+func (s *service) LockItems(ctx context.Context, userID string, req *LockItemsRequest) error {
 
 	itemsToLock := make(map[string]*LockItemModel, len(req.Items))
 	ids := make([]string, len(req.Items))
@@ -94,7 +95,7 @@ func (s *service) LockItems(ctx context.Context, userID, correlationID string, r
 		itemsToLock[item.ID] = item
 	}
 
-	items, err := s.repository.Get(ctx, userID, ids)
+	items, err := s.repository.Get(ctx, &userID, ids)
 
 	if err != nil {
 		return err
@@ -103,12 +104,90 @@ func (s *service) LockItems(ctx context.Context, userID, correlationID string, r
 	for _, item := range items {
 		itemToUpdate := itemsToLock[item.ID]
 
-		if err := item.Lock(itemToUpdate.Quantity); err != nil {
+		if err := item.Lock(req.LockedBy, itemToUpdate.Quantity); err != nil {
 			return err
 		}
 	}
 
 	if err := s.repository.UpdateBulk(ctx, &userID, items); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// TradeItems ...
+func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error {
+
+	offeredIDs := make([]string, len(req.OfferedItems))
+	for i, item := range req.OfferedItems {
+		offeredIDs[i] = item.ID
+	}
+
+	wantedIDs := make([]string, len(req.WantedItems))
+	for i, item := range req.WantedItems {
+		wantedIDs[i] = item.ID
+	}
+
+	offeredItems, err := s.repository.Get(ctx, nil, offeredIDs)
+	if err != nil {
+		return err
+	}
+
+	wantedItems, err := s.repository.Get(ctx, nil, wantedIDs)
+	if err != nil {
+		return err
+	}
+
+	var itemsToAdd []*Item
+	for _, item := range offeredItems {
+		var offeredQuantity ItemQuantity
+		newLocks := make([]*ItemLock, len(item.Locks)-1)
+		for _, lock := range item.Locks {
+			if lock.LockedBy == req.TradeID {
+				offeredQuantity = lock.Quantity
+			} else {
+				newLocks = append(newLocks, lock)
+			}
+		}
+
+		item.TotalQuantity = item.TotalQuantity - offeredQuantity
+		item.Locks = newLocks
+
+		newItem, err := NewItem(uuid.NewString(), wantedItems[0].OwnerID, string(item.Name), (*string)(item.Description), int64(offeredQuantity), item.Status)
+		if err != nil {
+			return err
+		}
+
+		itemsToAdd = append(itemsToAdd, newItem)
+	}
+
+	for _, item := range wantedItems {
+		var wantedQuantity ItemQuantity
+
+		for _, lock := range item.Locks {
+			if lock.LockedBy == req.TradeID {
+				wantedQuantity = lock.Quantity
+			}
+		}
+
+		if item.TotalQuantity < wantedQuantity {
+			return core.ErrValidationFailed
+		}
+
+		item.TotalQuantity = item.TotalQuantity - wantedQuantity
+
+		newItem, err := NewItem(uuid.NewString(), offeredItems[0].OwnerID, string(item.Name), (*string)(item.Description), int64(wantedQuantity), item.Status)
+		if err != nil {
+			return err
+		}
+
+		itemsToAdd = append(itemsToAdd, newItem)
+	}
+
+	allItems := append(append(offeredItems, wantedItems...), itemsToAdd...)
+
+	if err := s.repository.UpdateBulk(ctx, nil, allItems); err != nil {
 		return err
 	}
 

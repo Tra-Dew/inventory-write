@@ -37,17 +37,23 @@ type ItemDescription string
 // ItemQuantity ...
 type ItemQuantity int64
 
+// ItemLock ...
+type ItemLock struct {
+	LockedBy string
+	Quantity ItemQuantity
+}
+
 // Item ...
 type Item struct {
-	ID             string
-	OwnerID        string
-	Name           ItemName
-	Status         ItemStatus
-	Description    *ItemDescription
-	TotalQuantity  ItemQuantity
-	LockedQuantity ItemQuantity
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID            string
+	OwnerID       string
+	Name          ItemName
+	Status        ItemStatus
+	Description   *ItemDescription
+	TotalQuantity ItemQuantity
+	Locks         []*ItemLock
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // Repository ...
@@ -55,7 +61,7 @@ type Repository interface {
 	InsertBulk(ctx context.Context, items []*Item) error
 	UpdateBulk(ctx context.Context, userID *string, items []*Item) error
 	DeleteBulk(ctx context.Context, userID string, ids []string) error
-	Get(ctx context.Context, userID string, ids []string) ([]*Item, error)
+	Get(ctx context.Context, userID *string, ids []string) ([]*Item, error)
 	GetByStatus(ctx context.Context, status ItemStatus) ([]*Item, error)
 }
 
@@ -63,7 +69,8 @@ type Repository interface {
 type Service interface {
 	CreateItems(ctx context.Context, userID, correlationID string, req *CreateItemsRequest) error
 	UpdateItems(ctx context.Context, userID, correlationID string, req *UpdateItemsRequest) error
-	LockItems(ctx context.Context, userID, correlationID string, req *LockItemsRequest) error
+	LockItems(ctx context.Context, userID string, req *LockItemsRequest) error
+	TradeItems(ctx context.Context, req *TradeItemsRequest) error
 	DeleteItems(ctx context.Context, userID, correlationID string, req *DeleteItemsRequest) error
 }
 
@@ -123,16 +130,24 @@ func NewItem(id, ownerID, name string, description *string, quantity int64, stat
 	}
 
 	return &Item{
-		ID:             id,
-		OwnerID:        ownerID,
-		Name:           itemName,
-		Status:         status,
-		Description:    NewItemDescription(description),
-		TotalQuantity:  itemQuantity,
-		LockedQuantity: 0,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		ID:            id,
+		OwnerID:       ownerID,
+		Name:          itemName,
+		Status:        status,
+		Description:   NewItemDescription(description),
+		TotalQuantity: itemQuantity,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}, nil
+}
+
+// GetLockedQuantity ...
+func (item *Item) GetLockedQuantity() ItemQuantity {
+	var locksQuantity ItemQuantity
+	for _, lock := range item.Locks {
+		locksQuantity = locksQuantity + lock.Quantity
+	}
+	return locksQuantity
 }
 
 // Update ...
@@ -152,7 +167,7 @@ func (item *Item) Update(name string, description *string, quantity int64) error
 		return err
 	}
 
-	if item.LockedQuantity > itemQuantity {
+	if item.GetLockedQuantity() > itemQuantity {
 		return core.ErrNotEnoughtItemsToLock
 	}
 
@@ -172,20 +187,24 @@ func (item *Item) UpdateStatus(status ItemStatus) {
 }
 
 // Lock ...
-func (item *Item) Lock(quantity int64) error {
+func (item *Item) Lock(lockedBy string, quantity int64) error {
 
 	itemQuantity, err := NewItemQuantity(quantity)
 	if err != nil {
 		return err
 	}
 
-	lockedQuantity := item.LockedQuantity + itemQuantity
+	lockedQuantity := item.GetLockedQuantity() + itemQuantity
 
 	if lockedQuantity > item.TotalQuantity {
 		return core.ErrNotEnoughtItemsToLock
 	}
 
-	item.LockedQuantity = lockedQuantity
+	item.Locks = append(item.Locks, &ItemLock{
+		LockedBy: lockedBy,
+		Quantity: itemQuantity,
+	})
+
 	item.Status = ItemPendingLockDispatch
 	item.UpdatedAt = time.Now()
 

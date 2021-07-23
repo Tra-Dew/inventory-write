@@ -18,6 +18,7 @@ type ItemsLockRequestedEvent struct {
 // ItemLockCompletedEvent ...
 type ItemLockCompletedEvent struct {
 	ID        string    `json:"id"`
+	LockedBy  string    `json:"locked_by"`
 	Quantity  int64     `json:"quantity"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -57,16 +58,33 @@ type ItemsUpdatedEvent struct {
 	Items []*ItemUpdatedEvent `json:"items"`
 }
 
+// TradeOfferAcceptedItemEvent ...
+type TradeOfferAcceptedItemEvent struct {
+	ID       string `json:"id"`
+	Quantity int64  `json:"quantity"`
+}
+
+// TradeOfferAcceptedEvent ...
+type TradeOfferAcceptedEvent struct {
+	ID           string                         `json:"id"`
+	OwnerID      string                         `json:"owner_id"`
+	OfferedItems []*TradeOfferAcceptedItemEvent `json:"offered_items"`
+	WantedItems  []*TradeOfferAcceptedItemEvent `json:"wanted_items"`
+}
+
 // ParseItemsToItemsLockCompletedEvent ...
 func ParseItemsToItemsLockCompletedEvent(s []*Item) *ItemsLockCompletedEvent {
 
-	items := make([]*ItemLockCompletedEvent, len(s))
+	items := []*ItemLockCompletedEvent{}
 
-	for i, item := range s {
-		items[i] = &ItemLockCompletedEvent{
-			ID:        item.ID,
-			Quantity:  int64(item.LockedQuantity),
-			UpdatedAt: item.UpdatedAt,
+	for _, item := range s {
+		for _, lock := range item.Locks {
+			items = append(items, &ItemLockCompletedEvent{
+				ID:        item.ID,
+				LockedBy:  lock.LockedBy,
+				Quantity:  int64(lock.Quantity),
+				UpdatedAt: item.UpdatedAt,
+			})
 		}
 	}
 

@@ -54,7 +54,7 @@ func (r *RepositoryMock) DeleteBulk(ctx context.Context, userID string, ids []st
 }
 
 // Get ...
-func (r *RepositoryMock) Get(ctx context.Context, userID string, ids []string) ([]*inventory.Item, error) {
+func (r *RepositoryMock) Get(ctx context.Context, userID *string, ids []string) ([]*inventory.Item, error) {
 	args := r.Mock.Called()
 
 	arg0 := args.Get(0)
