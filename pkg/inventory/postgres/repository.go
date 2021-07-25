@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Tra-Dew/inventory-write/pkg/inventory"
+	"github.com/d-leme/tradew-inventory-write/pkg/inventory"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )

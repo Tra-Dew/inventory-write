@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/Tra-Dew/inventory-write/pkg/inventory"
+	"github.com/d-leme/tradew-inventory-write/pkg/inventory"
 	"github.com/stretchr/testify/mock"
 )
 

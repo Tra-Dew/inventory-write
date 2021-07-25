@@ -3,9 +3,9 @@ package inventory_test
 import (
 	"testing"
 
-	"github.com/Tra-Dew/inventory-write/pkg/core"
-	"github.com/Tra-Dew/inventory-write/pkg/inventory"
 	"github.com/bxcodec/faker/v3"
+	"github.com/d-leme/tradew-inventory-write/pkg/core"
+	"github.com/d-leme/tradew-inventory-write/pkg/inventory"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

@@ -3,7 +3,7 @@ package inventory
 import (
 	"context"
 
-	"github.com/Tra-Dew/inventory-write/pkg/core"
+	"github.com/d-leme/tradew-inventory-write/pkg/core"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
 )

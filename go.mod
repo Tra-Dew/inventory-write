@@ -1,4 +1,4 @@
-module github.com/Tra-Dew/inventory-write
+module github.com/d-leme/tradew-inventory-write
 
 go 1.16
 

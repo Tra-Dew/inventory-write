@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Tra-Dew/inventory-write/pkg/core"
-	"github.com/Tra-Dew/inventory-write/pkg/inventory"
-	"github.com/Tra-Dew/inventory-write/pkg/inventory/postgres"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/d-leme/tradew-inventory-write/pkg/core"
+	"github.com/d-leme/tradew-inventory-write/pkg/inventory"
+	"github.com/d-leme/tradew-inventory-write/pkg/inventory/postgres"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 )

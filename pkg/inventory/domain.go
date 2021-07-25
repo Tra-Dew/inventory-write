@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Tra-Dew/inventory-write/pkg/core"
+	"github.com/d-leme/tradew-inventory-write/pkg/core"
 )
 
 // ItemStatus ...
