@@ -71,7 +71,7 @@ func TradeAccepted(command *cobra.Command, args []string) {
 				logrus.
 					WithError(err).
 					WithFields(fields).
-					Info("error while trading items")
+					Error("error while trading items")
 				return err
 			}
 
@@ -79,7 +79,24 @@ func TradeAccepted(command *cobra.Command, args []string) {
 				WithFields(fields).
 				Info("items locked successfully")
 
-			//TODO: dispatch trade completed event
+			messageID, err := container.Producer.Publish(
+				settings.Events.ItemsTradeCompleted,
+				&inventory.ItemsTradeCompletedEvent{ID: message.ID},
+			)
+
+			if err != nil {
+				logrus.
+					WithError(err).
+					WithFields(fields).
+					Error("error while trading items")
+				return err
+			}
+
+			fields["message_id"] = messageID
+
+			logrus.
+				WithFields(fields).
+				Info("trade completed successfully")
 
 			return nil
 		}))

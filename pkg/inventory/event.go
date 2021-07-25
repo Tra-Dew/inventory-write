@@ -72,6 +72,11 @@ type TradeOfferAcceptedEvent struct {
 	WantedItems  []*TradeOfferAcceptedItemEvent `json:"wanted_items"`
 }
 
+// ItemsTradeCompletedEvent ...
+type ItemsTradeCompletedEvent struct {
+	ID string `json:"id"`
+}
+
 // ParseItemsToItemsLockCompletedEvent ...
 func ParseItemsToItemsLockCompletedEvent(s []*Item) *ItemsLockCompletedEvent {
 
