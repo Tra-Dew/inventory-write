@@ -45,9 +45,11 @@ type TradeItemModel struct {
 
 // TradeItemsRequest ...
 type TradeItemsRequest struct {
-	TradeID      string
-	OfferedItems []*TradeItemModel
-	WantedItems  []*TradeItemModel
+	TradeID            string
+	OwnerID            string
+	WantedItemsOwnerID string
+	OfferedItems       []*TradeItemModel
+	WantedItems        []*TradeItemModel
 }
 
 // DeleteItemsRequest ...

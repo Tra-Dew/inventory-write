@@ -34,8 +34,9 @@ func TradeAccepted(command *cobra.Command, args []string) {
 			message := payload.(*inventory.TradeOfferAcceptedEvent)
 
 			fields := logrus.Fields{
-				"trade_id": message.ID,
-				"owner_id": message.OwnerID,
+				"trade_id":              message.ID,
+				"owner_id":              message.OwnerID,
+				"wanted_items_owner_id": message.WantedItemsOwnerID,
 			}
 
 			logrus.
@@ -45,7 +46,6 @@ func TradeAccepted(command *cobra.Command, args []string) {
 			ctx := context.Background()
 
 			offeredItems := make([]*inventory.TradeItemModel, len(message.OfferedItems))
-
 			for i, item := range message.WantedItems {
 				offeredItems[i] = &inventory.TradeItemModel{
 					ID:       item.ID,
@@ -54,7 +54,6 @@ func TradeAccepted(command *cobra.Command, args []string) {
 			}
 
 			wantedItems := make([]*inventory.TradeItemModel, len(message.WantedItems))
-
 			for i, item := range message.WantedItems {
 				wantedItems[i] = &inventory.TradeItemModel{
 					ID:       item.ID,
@@ -63,8 +62,11 @@ func TradeAccepted(command *cobra.Command, args []string) {
 			}
 
 			req := &inventory.TradeItemsRequest{
-				OfferedItems: offeredItems,
-				WantedItems:  wantedItems,
+				TradeID:            message.ID,
+				OwnerID:            message.OwnerID,
+				WantedItemsOwnerID: message.WantedItemsOwnerID,
+				OfferedItems:       offeredItems,
+				WantedItems:        wantedItems,
 			}
 
 			if err := container.InventoryService.TradeItems(ctx, req); err != nil {

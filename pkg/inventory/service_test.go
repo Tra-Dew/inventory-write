@@ -10,6 +10,7 @@ import (
 	"github.com/d-leme/tradew-inventory-write/pkg/inventory/mock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	testifyMock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,6 +35,8 @@ func (s *serviceTestSuite) SetupTest() {
 	s.repository = mock.NewRepository().(*mock.RepositoryMock)
 	s.service = inventory.NewService(s.repository)
 }
+
+var anyItem = testifyMock.AnythingOfType("[]*inventory.Item")
 
 func (s *serviceTestSuite) TestCreateItems() {
 
@@ -103,8 +106,13 @@ func (s *serviceTestSuite) TestUpdateItems() {
 		},
 	}
 
-	s.repository.On("Get").Return(items, nil)
-	s.repository.On("UpdateBulk").Return(nil)
+	ids := make([]string, len(items))
+	for i, item := range items {
+		ids[i] = item.ID
+	}
+
+	s.repository.On("Get", ids).Return(items, nil)
+	s.repository.On("UpdateBulk", anyItem).Return(nil)
 
 	itemModels := make([]*inventory.UpdateItemModel, len(items))
 
@@ -147,8 +155,13 @@ func (s *serviceTestSuite) TestUpdateItemsInvalidItem() {
 		},
 	}
 
-	s.repository.On("Get").Return(items, nil)
-	s.repository.On("UpdateBulk").Return(nil)
+	ids := make([]string, len(items))
+	for i, item := range items {
+		ids[i] = item.ID
+	}
+
+	s.repository.On("Get", ids).Return(items, nil)
+	s.repository.On("UpdateBulk", anyItem).Return(nil)
 
 	itemModels := make([]*inventory.UpdateItemModel, len(items))
 
@@ -190,8 +203,13 @@ func (s *serviceTestSuite) TestLockItems() {
 		},
 	}
 
-	s.repository.On("Get").Return(items, nil)
-	s.repository.On("UpdateBulk").Return(nil)
+	ids := make([]string, len(items))
+	for i, item := range items {
+		ids[i] = item.ID
+	}
+
+	s.repository.On("Get", ids).Return(items, nil)
+	s.repository.On("UpdateBulk", anyItem).Return(nil)
 
 	itemModels := make([]*inventory.LockItemModel, len(items))
 
@@ -208,6 +226,112 @@ func (s *serviceTestSuite) TestLockItems() {
 
 	s.assert.NoError(err)
 	s.repository.AssertNumberOfCalls(s.T(), "Get", 1)
+	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 1)
+}
+
+func (s *serviceTestSuite) TestTradeItems() {
+
+	tradeID := uuid.NewString()
+	offeredItemsUserID := "offered-id"
+	wantedItemsUserID := "wanted-id"
+
+	offeredItems := []*inventory.Item{
+		{
+			ID:            uuid.NewString(),
+			OwnerID:       offeredItemsUserID,
+			Name:          inventory.ItemName("Offered Item 1"),
+			TotalQuantity: inventory.ItemQuantity(5),
+			Status:        inventory.ItemAvailable,
+			Locks: []*inventory.ItemLock{
+				{
+					LockedBy: tradeID,
+					Quantity: 1,
+				},
+			},
+		},
+		{
+			ID:            uuid.NewString(),
+			OwnerID:       offeredItemsUserID,
+			Name:          inventory.ItemName("Offered Item 2"),
+			TotalQuantity: inventory.ItemQuantity(5),
+			Status:        inventory.ItemAvailable,
+			Locks: []*inventory.ItemLock{
+				{
+					LockedBy: tradeID,
+					Quantity: 4,
+				},
+			},
+		},
+	}
+
+	wantedItems := []*inventory.Item{
+		{
+			ID:            uuid.NewString(),
+			OwnerID:       wantedItemsUserID,
+			Name:          inventory.ItemName("Wanted Item 1"),
+			TotalQuantity: inventory.ItemQuantity(2),
+			Status:        inventory.ItemAvailable,
+		},
+		{
+			ID:            uuid.NewString(),
+			OwnerID:       wantedItemsUserID,
+			Name:          inventory.ItemName("Wanted Item 2"),
+			TotalQuantity: inventory.ItemQuantity(5),
+			Status:        inventory.ItemAvailable,
+		},
+	}
+
+	offeredItemsModels := make([]*inventory.TradeItemModel, len(offeredItems))
+	offeredItemIDs := make([]string, len(offeredItems))
+
+	for i, item := range offeredItems {
+		offeredItemIDs[i] = item.ID
+		offeredItemsModels[i] = &inventory.TradeItemModel{
+			ID:       item.ID,
+			Quantity: int64(item.Locks[0].Quantity),
+		}
+	}
+
+	wantedItemsModels := make([]*inventory.TradeItemModel, len(wantedItems))
+	wantedItemIDs := make([]string, len(wantedItems))
+
+	for i, item := range wantedItems {
+		wantedItemIDs[i] = item.ID
+		wantedItemsModels[i] = &inventory.TradeItemModel{
+			ID:       item.ID,
+			Quantity: int64(item.TotalQuantity - 1),
+		}
+	}
+
+	s.repository.On("Get", offeredItemIDs).Return(offeredItems, nil)
+	s.repository.On("Get", wantedItemIDs).Return(wantedItems, nil)
+	s.repository.On("UpdateBulk", testifyMock.MatchedBy(func(items []*inventory.Item) bool {
+		var (
+			countOffered, countWanted int
+		)
+
+		for _, item := range items {
+			if item.OwnerID == wantedItemsUserID {
+				countWanted++
+			}
+			if item.OwnerID == offeredItemsUserID {
+				countOffered++
+			}
+		}
+
+		return countOffered == 4 && countWanted == 4
+	})).Return(nil)
+
+	req := &inventory.TradeItemsRequest{
+		TradeID:      tradeID,
+		OfferedItems: offeredItemsModels,
+		WantedItems:  wantedItemsModels,
+	}
+
+	err := s.service.TradeItems(s.ctx, req)
+
+	s.assert.NoError(err)
+	s.repository.AssertNumberOfCalls(s.T(), "Get", 2)
 	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 1)
 }
 

@@ -124,22 +124,25 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 		offeredIDs[i] = item.ID
 	}
 
+	wantedQuantities := make(map[string]int64, len(req.WantedItems))
 	wantedIDs := make([]string, len(req.WantedItems))
 	for i, item := range req.WantedItems {
 		wantedIDs[i] = item.ID
+		wantedQuantities[item.ID] = item.Quantity
 	}
 
-	offeredItems, err := s.repository.Get(ctx, nil, offeredIDs)
+	offeredItems, err := s.repository.Get(ctx, &req.OwnerID, offeredIDs)
 	if err != nil {
 		return err
 	}
 
-	wantedItems, err := s.repository.Get(ctx, nil, wantedIDs)
+	wantedItems, err := s.repository.Get(ctx, &req.WantedItemsOwnerID, wantedIDs)
 	if err != nil {
 		return err
 	}
 
 	var itemsToAdd []*Item
+
 	for _, item := range offeredItems {
 		var offeredQuantity ItemQuantity
 		newLocks := make([]*ItemLock, len(item.Locks)-1)
@@ -154,7 +157,7 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 		item.TotalQuantity = item.TotalQuantity - offeredQuantity
 		item.Locks = newLocks
 
-		newItem, err := NewItem(uuid.NewString(), wantedItems[0].OwnerID, string(item.Name), (*string)(item.Description), int64(offeredQuantity), item.Status)
+		newItem, err := NewItem(uuid.NewString(), wantedItems[0].OwnerID, string(item.Name), (*string)(item.Description), int64(offeredQuantity), ItemPendingUpdateDispatch)
 		if err != nil {
 			return err
 		}
@@ -163,13 +166,7 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 	}
 
 	for _, item := range wantedItems {
-		var wantedQuantity ItemQuantity
-
-		for _, lock := range item.Locks {
-			if lock.LockedBy == req.TradeID {
-				wantedQuantity = lock.Quantity
-			}
-		}
+		wantedQuantity := ItemQuantity(wantedQuantities[item.ID])
 
 		if item.TotalQuantity < wantedQuantity {
 			return core.ErrValidationFailed
@@ -177,7 +174,15 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 
 		item.TotalQuantity = item.TotalQuantity - wantedQuantity
 
-		newItem, err := NewItem(uuid.NewString(), offeredItems[0].OwnerID, string(item.Name), (*string)(item.Description), int64(wantedQuantity), item.Status)
+		newItem, err := NewItem(
+			uuid.NewString(),
+			offeredItems[0].OwnerID,
+			string(item.Name),
+			(*string)(item.Description),
+			int64(wantedQuantity),
+			ItemPendingUpdateDispatch,
+		)
+
 		if err != nil {
 			return err
 		}

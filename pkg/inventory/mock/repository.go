@@ -31,7 +31,7 @@ func (r *RepositoryMock) InsertBulk(ctx context.Context, items []*inventory.Item
 
 // UpdateBulk ...
 func (r *RepositoryMock) UpdateBulk(ctx context.Context, userID *string, items []*inventory.Item) error {
-	args := r.Mock.Called()
+	args := r.Mock.Called(items)
 
 	arg0 := args.Get(0)
 	if arg0 != nil {
@@ -55,7 +55,7 @@ func (r *RepositoryMock) DeleteBulk(ctx context.Context, userID string, ids []st
 
 // Get ...
 func (r *RepositoryMock) Get(ctx context.Context, userID *string, ids []string) ([]*inventory.Item, error) {
-	args := r.Mock.Called()
+	args := r.Mock.Called(ids)
 
 	arg0 := args.Get(0)
 	if arg0 != nil {
