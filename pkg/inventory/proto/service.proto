@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package inventory;
+
+option go_package = "pkg/inventory/proto";
+
+service InventoryService {
+  rpc LockItems (LockItemsRequest) returns (Empty) {}
+  rpc TradeItems (TradeItemsRequest) returns (Empty) {}
+}
+
+message Empty {}
+
+message ItemToLock {
+  string id = 1;
+  int64 quantity = 2;
+}
+
+message LockItemsRequest {
+  string lockedBy = 1;
+  string ownerID = 2;
+  repeated ItemToLock items = 3;
+}
+
+message ItemToTrade {
+  string id = 1;
+  int64 quantity = 2;
+}
+
+message TradeItemsRequest {
+  string tradeID = 1;
+  string ownerID = 2;
+  string wantedItemsOwnerID = 3;
+  repeated ItemToTrade offeredItems = 4;
+  repeated ItemToTrade wantedItems = 5;
+}
+

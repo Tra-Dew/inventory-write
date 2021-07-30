@@ -85,7 +85,7 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 }
 
 // LockItems ...
-func (s *service) LockItems(ctx context.Context, userID string, req *LockItemsRequest) error {
+func (s *service) LockItems(ctx context.Context, req *LockItemsRequest) error {
 
 	itemsToLock := make(map[string]*LockItemModel, len(req.Items))
 	ids := make([]string, len(req.Items))
@@ -95,7 +95,7 @@ func (s *service) LockItems(ctx context.Context, userID string, req *LockItemsRe
 		itemsToLock[item.ID] = item
 	}
 
-	items, err := s.repository.Get(ctx, &userID, ids)
+	items, err := s.repository.Get(ctx, &req.OwnerID, ids)
 
 	if err != nil {
 		return err
@@ -109,7 +109,7 @@ func (s *service) LockItems(ctx context.Context, userID string, req *LockItemsRe
 		}
 	}
 
-	if err := s.repository.UpdateBulk(ctx, &userID, items); err != nil {
+	if err := s.repository.UpdateBulk(ctx, &req.OwnerID, items); err != nil {
 		return err
 	}
 

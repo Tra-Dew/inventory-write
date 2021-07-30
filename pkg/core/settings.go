@@ -3,6 +3,7 @@ package core
 // Settings ...
 type Settings struct {
 	Port     int32           `yaml:"port"`
+	GRPCPort int32           `yaml:"grpc_port"`
 	JWT      *JWT            `yaml:"jwt"`
 	SQS      *SessionConfig  `yaml:"sqs"`
 	SNS      *SessionConfig  `yaml:"sns"`

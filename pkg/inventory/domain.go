@@ -69,7 +69,7 @@ type Repository interface {
 type Service interface {
 	CreateItems(ctx context.Context, userID, correlationID string, req *CreateItemsRequest) error
 	UpdateItems(ctx context.Context, userID, correlationID string, req *UpdateItemsRequest) error
-	LockItems(ctx context.Context, userID string, req *LockItemsRequest) error
+	LockItems(ctx context.Context, req *LockItemsRequest) error
 	TradeItems(ctx context.Context, req *TradeItemsRequest) error
 	DeleteItems(ctx context.Context, userID, correlationID string, req *DeleteItemsRequest) error
 }

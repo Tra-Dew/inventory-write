@@ -34,6 +34,7 @@ type LockItemModel struct {
 // LockItemsRequest ...
 type LockItemsRequest struct {
 	LockedBy string
+	OwnerID  string
 	Items    []*LockItemModel
 }
 

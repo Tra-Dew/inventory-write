@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Server is a cmd to setup api server
-func Server(command *cobra.Command, args []string) {
+// ServerHTTP is a cmd to setup api server
+func ServerHTTP(command *cobra.Command, args []string) {
 
 	settings := new(core.Settings)
 
