@@ -133,22 +133,26 @@ func (s *service) LockItems(ctx context.Context, req *LockItemsRequest) error {
 
 // TradeItems ...
 func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error {
+	// TODO: refactor this method and send this to trade service
+	// use the inventory api only as a crud like service
 
+	// Getting all offered items
 	offeredIDs := make([]string, len(req.OfferedItems))
 	for i, item := range req.OfferedItems {
 		offeredIDs[i] = item.ID
 	}
 
+	offeredItems, err := s.repository.Get(ctx, &req.OwnerID, offeredIDs)
+	if err != nil {
+		return err
+	}
+
+	// Getting all wanted items
 	wantedIDs := make([]string, len(req.WantedItems))
 	wantedQuantities := make(map[string]int64, len(req.WantedItems))
 	for i, item := range req.WantedItems {
 		wantedIDs[i] = item.ID
 		wantedQuantities[item.ID] = item.Quantity
-	}
-
-	offeredItems, err := s.repository.Get(ctx, &req.OwnerID, offeredIDs)
-	if err != nil {
-		return err
 	}
 
 	wantedItems, err := s.repository.Get(ctx, &req.WantedItemsOwnerID, wantedIDs)
@@ -157,6 +161,8 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 	}
 
 	var itemsToAdd []*Item
+	var itemsToUpdate []*Item
+	var itemsToDelete []string
 
 	for _, item := range offeredItems {
 		var offeredQuantity ItemQuantity
@@ -172,12 +178,22 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 		item.TotalQuantity = item.TotalQuantity - offeredQuantity
 		item.Locks = newLocks
 
-		newItem, err := NewItem(uuid.NewString(), wantedItems[0].OwnerID, string(item.Name), (*string)(item.Description), int64(offeredQuantity), ItemPendingUpdateDispatch)
+		newItem, err := NewItem(
+			uuid.NewString(), req.WantedItemsOwnerID, string(item.Name),
+			(*string)(item.Description), int64(offeredQuantity), ItemPendingUpdateDispatch,
+		)
+
 		if err != nil {
 			return err
 		}
 
 		itemsToAdd = append(itemsToAdd, newItem)
+
+		if item.TotalQuantity > 0 {
+			itemsToUpdate = append(itemsToUpdate, item)
+		} else {
+			itemsToDelete = append(itemsToDelete, item.ID)
+		}
 	}
 
 	for _, item := range wantedItems {
@@ -191,7 +207,7 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 
 		newItem, err := NewItem(
 			uuid.NewString(),
-			offeredItems[0].OwnerID,
+			req.OwnerID,
 			string(item.Name),
 			(*string)(item.Description),
 			int64(wantedQuantity),
@@ -203,11 +219,24 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 		}
 
 		itemsToAdd = append(itemsToAdd, newItem)
+
+		if item.TotalQuantity > 0 {
+			itemsToUpdate = append(itemsToUpdate, item)
+		} else {
+			itemsToDelete = append(itemsToDelete, item.ID)
+		}
 	}
 
-	allItems := append(append(offeredItems, wantedItems...), itemsToAdd...)
+	//TODO: make this operationg a single transaction
+	if err := s.repository.UpdateBulk(ctx, itemsToUpdate); err != nil {
+		return err
+	}
 
-	if err := s.repository.UpdateBulk(ctx, allItems); err != nil {
+	if err := s.repository.InsertBulk(ctx, itemsToAdd); err != nil {
+		return err
+	}
+
+	if err := s.repository.DeleteBulk(ctx, itemsToDelete); err != nil {
 		return err
 	}
 
@@ -217,9 +246,18 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 // DeleteItems ...
 func (s *service) DeleteItems(ctx context.Context, userID, correlationID string, req *DeleteItemsRequest) error {
 
-	err := s.repository.DeleteBulk(ctx, userID, req.IDs)
+	items, err := s.repository.Get(ctx, &userID, req.IDs)
 
 	if err != nil {
+		return err
+	}
+
+	ids := make([]string, len(items))
+	for i, item := range items {
+		ids[i] = item.ID
+	}
+
+	if err := s.repository.DeleteBulk(ctx, ids); err != nil {
 		return err
 	}
 

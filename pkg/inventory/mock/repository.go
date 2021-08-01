@@ -42,7 +42,7 @@ func (r *RepositoryMock) UpdateBulk(ctx context.Context, items []*inventory.Item
 }
 
 // DeleteBulk ...
-func (r *RepositoryMock) DeleteBulk(ctx context.Context, userID string, ids []string) error {
+func (r *RepositoryMock) DeleteBulk(ctx context.Context, ids []string) error {
 	args := r.Mock.Called()
 
 	arg0 := args.Get(0)

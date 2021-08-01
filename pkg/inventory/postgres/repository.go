@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/d-leme/tradew-inventory-write/pkg/inventory"
 	"github.com/jackc/pgx/v4"
@@ -140,7 +141,7 @@ func (r *repositoryPostgres) UpdateBulk(ctx context.Context, items []*inventory.
 }
 
 // DeleteBulk ...
-func (r *repositoryPostgres) DeleteBulk(ctx context.Context, userID string, ids []string) error {
+func (r *repositoryPostgres) DeleteBulk(ctx context.Context, ids []string) error {
 
 	sqlDeleteLocks := `
 		delete from item_locks
@@ -151,7 +152,7 @@ func (r *repositoryPostgres) DeleteBulk(ctx context.Context, userID string, ids 
 	sqlDeleteItems := `
 		delete from items
 		where
-			id = any($1) and owner_id = $2
+			id = any($1)
 	`
 
 	tx, err := r.pool.Begin(ctx)
@@ -159,11 +160,11 @@ func (r *repositoryPostgres) DeleteBulk(ctx context.Context, userID string, ids 
 		return err
 	}
 
-	if _, err := tx.Exec(ctx, sqlDeleteLocks, ids, userID); err != nil {
+	if _, err := tx.Exec(ctx, sqlDeleteLocks, ids); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(ctx, sqlDeleteItems, ids, userID); err != nil {
+	if _, err := tx.Exec(ctx, sqlDeleteItems, ids); err != nil {
 		return err
 	}
 
@@ -177,14 +178,22 @@ func (r *repositoryPostgres) DeleteBulk(ctx context.Context, userID string, ids 
 // Get ...
 func (r *repositoryPostgres) Get(ctx context.Context, userID *string, ids []string) ([]*inventory.Item, error) {
 
-	sql := `
+	filter := "i.id = any($1)"
+	args := []interface{}{ids}
+
+	if userID != nil {
+		filter = filter + " and owner_id = $2"
+		args = append(args, *userID)
+	}
+
+	sql := fmt.Sprintf(`
 		select * from items i
 			left join item_locks l on i.id = l.item_id
 		where
-			i.id = any($1)
-	`
+			%s
+	`, filter)
 
-	return r.getItems(ctx, sql, ids)
+	return r.getItems(ctx, sql, args...)
 }
 
 // GetByStatus ...
@@ -211,13 +220,17 @@ func (r *repositoryPostgres) getItems(ctx context.Context, sql string, args ...i
 		var itemID, lockedBy *string
 		var quantity *int64
 
-		rows.Scan(
+		err := rows.Scan(
 			&item.ID, &item.OwnerID, &item.Name, &item.Status,
 			&item.Description, &item.TotalQuantity,
 			&item.CreatedAt, &item.UpdatedAt,
 
 			&itemID, &lockedBy, &quantity,
 		)
+
+		if err != nil {
+			return nil, err
+		}
 
 		if i, exist := itemMap[item.ID]; exist {
 			i.Locks = append(i.Locks, &inventory.ItemLock{LockedBy: *lockedBy, Quantity: inventory.ItemQuantity(*quantity)})
