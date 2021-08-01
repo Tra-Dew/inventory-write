@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/d-leme/tradew-inventory-write/pkg/inventory"
 	"github.com/jackc/pgx/v4"
@@ -25,25 +24,39 @@ func (r *repositoryPostgres) InsertBulk(ctx context.Context, items []*inventory.
 
 	batch := &pgx.Batch{}
 
-	stmt := `
+	sqlItems := `
 		insert into
-		items(id, owner_id, name, status, description, total_quantity, locked_quantity, created_at, updated_at)
-		values($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		items(id, owner_id, name, status, description, total_quantity, created_at, updated_at)
+		values($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+
+	sqlLocks := `
+		insert into
+		item_locks(item_id, locked_by, quantity)
+		values($1, $2, $3)
 	`
 
 	for _, i := range items {
 		batch.Queue(
-			stmt,
+			sqlItems,
 			i.ID,
 			i.OwnerID,
 			i.Name,
 			i.Status,
 			i.Description,
 			i.TotalQuantity,
-			// i.LockedQuantity,
 			i.CreatedAt,
 			i.UpdatedAt,
 		)
+
+		for _, l := range i.Locks {
+			batch.Queue(
+				sqlLocks,
+				i.ID,
+				l.LockedBy,
+				l.Quantity,
+			)
+		}
 	}
 
 	tx, err := r.pool.Begin(ctx)
@@ -67,48 +80,43 @@ func (r *repositoryPostgres) InsertBulk(ctx context.Context, items []*inventory.
 }
 
 // UpdateBulk ...
-func (r *repositoryPostgres) UpdateBulk(ctx context.Context, userID *string, items []*inventory.Item) error {
+func (r *repositoryPostgres) UpdateBulk(ctx context.Context, items []*inventory.Item) error {
 
 	batch := &pgx.Batch{}
 
-	var filter string
-
-	if userID != nil {
-		filter = "and owner_id = $9"
-	}
-
-	stmt := fmt.Sprintf(`
+	sqlItems := `
 		update items
 		set
 			name = $1,
 			status = $2,
 			description = $3,
 			total_quantity = $4,
-			locked_quantity = $5,
-			created_at = $6,
-			updated_at = $7
+			created_at = $5,
+			updated_at = $6
 		where
-			id = $8
-			%s
-	`, filter)
+			id = $7
+	`
+	sqlDeleteLocks := `
+		delete from item_locks
+		where
+			item_id = $1
+	`
+
+	sqlInsertLock := `
+		insert into item_locks (item_id, locked_by, quantity)
+		values($1, $2, $3)
+	`
 
 	for _, i := range items {
-		args := []interface{}{
-			i.Name,
-			i.Status,
-			i.Description,
-			i.TotalQuantity,
-			// i.LockedQuantity,
-			i.CreatedAt,
-			i.UpdatedAt,
-			i.ID,
-		}
+		batch.Queue(sqlItems,
+			i.Name, i.Status, i.Description,
+			i.TotalQuantity, i.CreatedAt, i.UpdatedAt, i.ID,
+		)
 
-		if userID != nil {
-			args = append(args, userID)
+		batch.Queue(sqlDeleteLocks, i.ID)
+		for _, l := range i.Locks {
+			batch.Queue(sqlInsertLock, i.ID, l.LockedBy, l.Quantity)
 		}
-
-		batch.Queue(stmt, args...)
 	}
 
 	tx, err := r.pool.Begin(ctx)
@@ -134,17 +142,28 @@ func (r *repositoryPostgres) UpdateBulk(ctx context.Context, userID *string, ite
 // DeleteBulk ...
 func (r *repositoryPostgres) DeleteBulk(ctx context.Context, userID string, ids []string) error {
 
-	stmt := `
+	sqlDeleteLocks := `
+		delete from item_locks
+		where
+			item_id = any($1)
+	`
+
+	sqlDeleteItems := `
 		delete from items
 		where
 			id = any($1) and owner_id = $2
 	`
+
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(ctx, stmt, ids, userID); err != nil {
+	if _, err := tx.Exec(ctx, sqlDeleteLocks, ids, userID); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, sqlDeleteItems, ids, userID); err != nil {
 		return err
 	}
 
@@ -157,40 +176,29 @@ func (r *repositoryPostgres) DeleteBulk(ctx context.Context, userID string, ids 
 
 // Get ...
 func (r *repositoryPostgres) Get(ctx context.Context, userID *string, ids []string) ([]*inventory.Item, error) {
-	var items []*inventory.Item
 
-	rows, err := r.pool.Query(ctx, `select * from items where id = any($1)`, ids)
+	sql := `
+		select * from items i
+			left join item_locks l on i.id = l.item_id
+		where
+			i.id = any($1)
+	`
 
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		item := new(inventory.Item)
-		rows.Scan(
-			&item.ID,
-			&item.OwnerID,
-			&item.Name,
-			&item.Status,
-			&item.Description,
-			&item.TotalQuantity,
-			// &item.LockedQuantity,
-			&item.CreatedAt,
-			&item.UpdatedAt,
-		)
-		items = append(items, item)
-	}
-
-	return items, nil
+	return r.getItems(ctx, sql, ids)
 }
 
 // GetByStatus ...
 func (r *repositoryPostgres) GetByStatus(ctx context.Context, status inventory.ItemStatus) ([]*inventory.Item, error) {
-	var items []*inventory.Item
 
-	rows, err := r.pool.Query(ctx, `select * from items where status = $1`, status)
+	sql := `select * from items where status = $1`
+
+	return r.getItems(ctx, sql, status)
+}
+
+func (r *repositoryPostgres) getItems(ctx context.Context, sql string, args ...interface{}) ([]*inventory.Item, error) {
+	itemMap := map[string]*inventory.Item{}
+
+	rows, err := r.pool.Query(ctx, sql, args...)
 
 	if err != nil {
 		return nil, err
@@ -200,17 +208,33 @@ func (r *repositoryPostgres) GetByStatus(ctx context.Context, status inventory.I
 
 	for rows.Next() {
 		item := new(inventory.Item)
+		var itemID, lockedBy *string
+		var quantity *int64
+
 		rows.Scan(
-			&item.ID,
-			&item.OwnerID,
-			&item.Name,
-			&item.Status,
-			&item.Description,
-			&item.TotalQuantity,
-			// &item.LockedQuantity,
-			&item.CreatedAt,
-			&item.UpdatedAt,
+			&item.ID, &item.OwnerID, &item.Name, &item.Status,
+			&item.Description, &item.TotalQuantity,
+			&item.CreatedAt, &item.UpdatedAt,
+
+			&itemID, &lockedBy, &quantity,
 		)
+
+		if i, exist := itemMap[item.ID]; exist {
+			i.Locks = append(i.Locks, &inventory.ItemLock{LockedBy: *lockedBy, Quantity: inventory.ItemQuantity(*quantity)})
+		} else {
+			if itemID != nil {
+				item.Locks = append(item.Locks, &inventory.ItemLock{LockedBy: *lockedBy, Quantity: inventory.ItemQuantity(*quantity)})
+			}
+			itemMap[item.ID] = item
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	var items []*inventory.Item
+	for _, item := range itemMap {
 		items = append(items, item)
 	}
 

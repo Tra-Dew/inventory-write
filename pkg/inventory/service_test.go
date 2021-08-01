@@ -47,9 +47,9 @@ func (s *serviceTestSuite) TestCreateItems() {
 
 	req := &inventory.CreateItemsRequest{
 		Items: []*inventory.CreateItemModel{
-			createItem(),
-			createItem(),
-			createItem(),
+			createItemModel(),
+			createItemModel(),
+			createItemModel(),
 		},
 	}
 
@@ -66,15 +66,15 @@ func (s *serviceTestSuite) TestCreateItemsInvalidItem() {
 	correlationID := uuid.NewString()
 	userID := uuid.NewString()
 
-	invalidItem := createItem()
+	invalidItem := createItemModel()
 	invalidItem.Name = ""
 
 	req := &inventory.CreateItemsRequest{
 		Items: []*inventory.CreateItemModel{
 			invalidItem,
-			createItem(),
-			createItem(),
-			createItem(),
+			createItemModel(),
+			createItemModel(),
+			createItemModel(),
 		},
 	}
 
@@ -182,50 +182,113 @@ func (s *serviceTestSuite) TestUpdateItemsInvalidItem() {
 	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 0)
 }
 
-func (s *serviceTestSuite) TestLockItems() {
+func (s *serviceTestSuite) TestLockItemsInvalidWantedItem() {
 
-	userID := uuid.NewString()
+	lockedBy := uuid.NewString()
+	ownerID := uuid.NewString()
+	wantedItemsOwnerID := uuid.NewString()
 
-	items := []*inventory.Item{
-		{
-			ID:            uuid.NewString(),
-			OwnerID:       userID,
-			Name:          inventory.ItemName(faker.Name()),
-			TotalQuantity: inventory.ItemQuantity(5),
-			Status:        inventory.ItemAvailable,
-		},
-		{
-			ID:            uuid.NewString(),
-			OwnerID:       userID,
-			Name:          inventory.ItemName(faker.Name()),
-			TotalQuantity: inventory.ItemQuantity(5),
-			Status:        inventory.ItemAvailable,
-		},
-	}
+	// creating offered items
+	offeredItems := createItems(2, ownerID)
+	offeredIDs := make([]string, len(offeredItems))
+	offeredItemModels := make([]*inventory.LockItemModel, len(offeredItems))
 
-	ids := make([]string, len(items))
-	for i, item := range items {
-		ids[i] = item.ID
-	}
-
-	s.repository.On("Get", ids).Return(items, nil)
-	s.repository.On("UpdateBulk", anyItem).Return(nil)
-
-	itemModels := make([]*inventory.LockItemModel, len(items))
-
-	for i, item := range items {
-		itemModels[i] = &inventory.LockItemModel{
+	for i, item := range offeredItems {
+		offeredIDs[i] = item.ID
+		offeredItemModels[i] = &inventory.LockItemModel{
 			ID:       item.ID,
 			Quantity: 3,
 		}
 	}
 
-	req := &inventory.LockItemsRequest{Items: itemModels}
+	// creating wanted items
+	wantedItems := createItems(1, wantedItemsOwnerID)
+	wantedIDs := make([]string, len(wantedItems))
+	wantedItemModels := make([]*inventory.LockItemModel, len(wantedItems))
 
-	err := s.service.LockItems(s.ctx, userID, req)
+	for i, item := range wantedItems {
+		wantedIDs[i] = item.ID
+		wantedItemModels[i] = &inventory.LockItemModel{
+			ID:       item.ID,
+			Quantity: 3,
+		}
+	}
+
+	invalidItem := &inventory.LockItemModel{
+		ID:       uuid.NewString(),
+		Quantity: 3,
+	}
+
+	wantedIDs = append(wantedIDs, invalidItem.ID)
+	wantedItemModels = append(wantedItemModels, invalidItem)
+
+	s.repository.On("Get", offeredIDs).Return(offeredItems, nil)
+	s.repository.On("Get", wantedIDs).Return(wantedItems, nil)
+	s.repository.On("UpdateBulk", anyItem).Return(nil)
+
+	req := &inventory.LockItemsRequest{
+		LockedBy:           lockedBy,
+		OwnerID:            ownerID,
+		WantedItemsOwnerID: wantedItemsOwnerID,
+		OfferedItems:       offeredItemModels,
+		WantedItems:        wantedItemModels,
+	}
+
+	err := s.service.LockItems(s.ctx, req)
+
+	s.assert.ErrorIs(core.ErrInvalidWantedItems, err)
+	s.repository.AssertNumberOfCalls(s.T(), "Get", 1)
+	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 0)
+}
+
+func (s *serviceTestSuite) TestLockItems() {
+
+	lockedBy := uuid.NewString()
+	ownerID := uuid.NewString()
+	wantedItemsOwnerID := uuid.NewString()
+
+	// creating offered items
+	offeredItems := createItems(2, ownerID)
+	offeredIDs := make([]string, len(offeredItems))
+	offeredItemModels := make([]*inventory.LockItemModel, len(offeredItems))
+
+	for i, item := range offeredItems {
+		offeredIDs[i] = item.ID
+		offeredItemModels[i] = &inventory.LockItemModel{
+			ID:       item.ID,
+			Quantity: 3,
+		}
+	}
+
+	// creating wanted items
+	wantedItems := createItems(1, wantedItemsOwnerID)
+	wantedIDs := make([]string, len(wantedItems))
+	wantedItemModels := make([]*inventory.LockItemModel, len(wantedItems))
+
+	for i, item := range wantedItems {
+		wantedIDs[i] = item.ID
+		wantedItemModels[i] = &inventory.LockItemModel{
+			ID:       item.ID,
+			Quantity: 3,
+		}
+	}
+
+	s.repository.On("Get", offeredIDs).Return(offeredItems, nil)
+	s.repository.On("Get", wantedIDs).Return(wantedItems, nil)
+	s.repository.On("UpdateBulk", anyItem).Return(nil)
+
+	req := &inventory.LockItemsRequest{
+		LockedBy:           lockedBy,
+		OwnerID:            ownerID,
+		WantedItemsOwnerID: wantedItemsOwnerID,
+		OfferedItems:       offeredItemModels,
+		WantedItems:        wantedItemModels,
+	}
+
+	err := s.service.LockItems(s.ctx, req)
 
 	s.assert.NoError(err)
-	s.repository.AssertNumberOfCalls(s.T(), "Get", 1)
+	s.repository.AssertNumberOfCalls(s.T(), "Get", 2)
 	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 1)
 }
 
@@ -335,7 +398,7 @@ func (s *serviceTestSuite) TestTradeItems() {
 	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 1)
 }
 
-func createItem() *inventory.CreateItemModel {
+func createItemModel() *inventory.CreateItemModel {
 	faker.SetRandomStringLength(15)
 
 	description := faker.Sentence()
@@ -344,4 +407,27 @@ func createItem() *inventory.CreateItemModel {
 		Description: &description,
 		Quantity:    5,
 	}
+}
+
+func createItems(amount int, ownerID string) []*inventory.Item {
+
+	faker.SetRandomStringLength(15)
+
+	items := make([]*inventory.Item, amount)
+
+	for i := 0; i < amount; i++ {
+		description := faker.Sentence()
+		ints, _ := faker.RandomInt(5, 10)
+
+		items[i], _ = inventory.NewItem(
+			uuid.NewString(),
+			ownerID,
+			faker.Name(),
+			&description,
+			int64(ints[0]),
+			inventory.ItemAvailable,
+		)
+	}
+
+	return items
 }

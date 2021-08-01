@@ -19,7 +19,9 @@ message ItemToLock {
 message LockItemsRequest {
   string lockedBy = 1;
   string ownerID = 2;
-  repeated ItemToLock items = 3;
+  string wantedItemsOwnerID = 3;
+  repeated ItemToLock offeredItems = 4;
+  repeated ItemToLock wantedItems = 5;
 }
 
 message ItemToTrade {
@@ -34,4 +36,3 @@ message TradeItemsRequest {
   repeated ItemToTrade offeredItems = 4;
   repeated ItemToTrade wantedItems = 5;
 }
-

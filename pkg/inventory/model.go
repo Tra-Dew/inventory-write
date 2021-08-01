@@ -33,9 +33,11 @@ type LockItemModel struct {
 
 // LockItemsRequest ...
 type LockItemsRequest struct {
-	LockedBy string
-	OwnerID  string
-	Items    []*LockItemModel
+	LockedBy           string
+	OwnerID            string
+	WantedItemsOwnerID string
+	OfferedItems       []*LockItemModel
+	WantedItems        []*LockItemModel
 }
 
 // TradeItemModel ...

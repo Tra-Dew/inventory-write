@@ -23,19 +23,28 @@ func NewGRPCService(service Service) proto.InventoryServiceServer {
 func (s *grpcService) LockItems(ctx context.Context, req *proto.LockItemsRequest) (*proto.Empty, error) {
 
 	servReq := &LockItemsRequest{
-		OwnerID:  req.OwnerID,
-		LockedBy: req.LockedBy,
-		Items:    make([]*LockItemModel, len(req.Items)),
+		OwnerID:            req.OwnerID,
+		LockedBy:           req.LockedBy,
+		WantedItemsOwnerID: req.WantedItemsOwnerID,
+		OfferedItems:       make([]*LockItemModel, len(req.OfferedItems)),
+		WantedItems:        make([]*LockItemModel, len(req.WantedItems)),
 	}
 
-	for i, item := range req.Items {
-		servReq.Items[i] = &LockItemModel{
+	for i, item := range req.OfferedItems {
+		servReq.OfferedItems[i] = &LockItemModel{
 			ID:       item.Id,
 			Quantity: item.Quantity,
 		}
 	}
 
-	if err := s.service.LockItems(ctx, req.UserID, servReq); err != nil {
+	for i, item := range req.WantedItems {
+		servReq.WantedItems[i] = &LockItemModel{
+			ID:       item.Id,
+			Quantity: item.Quantity,
+		}
+	}
+
+	if err := s.service.LockItems(ctx, servReq); err != nil {
 		return nil, err
 	}
 
@@ -45,13 +54,23 @@ func (s *grpcService) LockItems(ctx context.Context, req *proto.LockItemsRequest
 // TradeItems ...
 func (s *grpcService) TradeItems(ctx context.Context, req *proto.TradeItemsRequest) (*proto.Empty, error) {
 
-	servReq := &LockItemsRequest{
-		LockedBy: req.LockedBy,
-		Items:    make([]*LockItemModel, len(req.Items)),
+	servReq := &TradeItemsRequest{
+		TradeID:            req.TradeID,
+		OwnerID:            req.OwnerID,
+		WantedItemsOwnerID: req.WantedItemsOwnerID,
+		OfferedItems:       make([]*TradeItemModel, len(req.OfferedItems)),
+		WantedItems:        make([]*TradeItemModel, len(req.WantedItems)),
 	}
 
-	for i, item := range req.Items {
-		servReq.Items[i] = &LockItemModel{
+	for i, item := range req.OfferedItems {
+		servReq.OfferedItems[i] = &TradeItemModel{
+			ID:       item.Id,
+			Quantity: item.Quantity,
+		}
+	}
+
+	for i, item := range req.WantedItems {
+		servReq.WantedItems[i] = &TradeItemModel{
 			ID:       item.Id,
 			Quantity: item.Quantity,
 		}

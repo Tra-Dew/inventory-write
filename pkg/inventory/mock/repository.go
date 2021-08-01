@@ -30,7 +30,7 @@ func (r *RepositoryMock) InsertBulk(ctx context.Context, items []*inventory.Item
 }
 
 // UpdateBulk ...
-func (r *RepositoryMock) UpdateBulk(ctx context.Context, userID *string, items []*inventory.Item) error {
+func (r *RepositoryMock) UpdateBulk(ctx context.Context, items []*inventory.Item) error {
 	args := r.Mock.Called(items)
 
 	arg0 := args.Get(0)

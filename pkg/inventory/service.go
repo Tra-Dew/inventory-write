@@ -20,7 +20,6 @@ func NewService(repository Repository) Service {
 	}
 }
 
-//TODO: make this entire operation asyncronous, since mongo bulk write is not atomic
 // CreateItems ...
 func (s *service) CreateItems(ctx context.Context, userID, correlationID string, req *CreateItemsRequest) error {
 	items := make([]*Item, len(req.Items))
@@ -49,7 +48,6 @@ func (s *service) CreateItems(ctx context.Context, userID, correlationID string,
 	return nil
 }
 
-//TODO: make this entire operation asyncronous, since mongo bulk delete is not atomic
 // UpdateItems ...
 func (s *service) UpdateItems(ctx context.Context, userID, correlationID string, req *UpdateItemsRequest) error {
 
@@ -77,7 +75,7 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 		}
 	}
 
-	if err := s.repository.UpdateBulk(ctx, &userID, items); err != nil {
+	if err := s.repository.UpdateBulk(ctx, items); err != nil {
 		return err
 	}
 
@@ -87,10 +85,27 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 // LockItems ...
 func (s *service) LockItems(ctx context.Context, req *LockItemsRequest) error {
 
-	itemsToLock := make(map[string]*LockItemModel, len(req.Items))
-	ids := make([]string, len(req.Items))
+	wantedIDs := make([]string, len(req.WantedItems))
+	for i, item := range req.WantedItems {
+		wantedIDs[i] = item.ID
+	}
 
-	for i, item := range req.Items {
+	// getting wanted items and validating whether
+	// all items exists and they all belong to the same user
+	wantedItems, err := s.repository.Get(ctx, &req.WantedItemsOwnerID, wantedIDs)
+
+	if err != nil {
+		return err
+	}
+
+	if len(wantedItems) != len(req.WantedItems) {
+		return core.ErrInvalidWantedItems
+	}
+
+	ids := make([]string, len(req.OfferedItems))
+	itemsToLock := make(map[string]*LockItemModel, len(req.OfferedItems))
+
+	for i, item := range req.OfferedItems {
 		ids[i] = item.ID
 		itemsToLock[item.ID] = item
 	}
@@ -109,7 +124,7 @@ func (s *service) LockItems(ctx context.Context, req *LockItemsRequest) error {
 		}
 	}
 
-	if err := s.repository.UpdateBulk(ctx, &req.OwnerID, items); err != nil {
+	if err := s.repository.UpdateBulk(ctx, items); err != nil {
 		return err
 	}
 
@@ -124,8 +139,8 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 		offeredIDs[i] = item.ID
 	}
 
-	wantedQuantities := make(map[string]int64, len(req.WantedItems))
 	wantedIDs := make([]string, len(req.WantedItems))
+	wantedQuantities := make(map[string]int64, len(req.WantedItems))
 	for i, item := range req.WantedItems {
 		wantedIDs[i] = item.ID
 		wantedQuantities[item.ID] = item.Quantity
@@ -192,7 +207,7 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 
 	allItems := append(append(offeredItems, wantedItems...), itemsToAdd...)
 
-	if err := s.repository.UpdateBulk(ctx, nil, allItems); err != nil {
+	if err := s.repository.UpdateBulk(ctx, allItems); err != nil {
 		return err
 	}
 

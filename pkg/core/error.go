@@ -35,6 +35,10 @@ var (
 	// ErrNotEnoughtItemsToLock returned when trying to lock a bigger quantity
 	// than the total quantity
 	ErrNotEnoughtItemsToLock = newError("not-enought-items-to-lock")
+
+	// ErrInvalidWantedItems returned when trying to create an trade for
+	// unexistent items or items belong to some other user
+	ErrInvalidWantedItems = newError("invalid-wanted-items")
 )
 
 // RestError used as a Rest api call error

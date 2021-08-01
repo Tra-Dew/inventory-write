@@ -63,7 +63,7 @@ func DispatchItemCreated(command *cobra.Command, args []string) {
 		item.UpdateStatus(inventory.ItemAvailable)
 	}
 
-	if err := container.InventoryRepository.UpdateBulk(ctx, nil, items); err != nil {
+	if err := container.InventoryRepository.UpdateBulk(ctx, items); err != nil {
 		logrus.
 			WithError(err).
 			WithFields(fields).

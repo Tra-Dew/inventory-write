@@ -59,7 +59,7 @@ type Item struct {
 // Repository ...
 type Repository interface {
 	InsertBulk(ctx context.Context, items []*Item) error
-	UpdateBulk(ctx context.Context, userID *string, items []*Item) error
+	UpdateBulk(ctx context.Context, items []*Item) error
 	DeleteBulk(ctx context.Context, userID string, ids []string) error
 	Get(ctx context.Context, userID *string, ids []string) ([]*Item, error)
 	GetByStatus(ctx context.Context, status ItemStatus) ([]*Item, error)
