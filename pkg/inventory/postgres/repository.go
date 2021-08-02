@@ -199,7 +199,11 @@ func (r *repositoryPostgres) Get(ctx context.Context, userID *string, ids []stri
 // GetByStatus ...
 func (r *repositoryPostgres) GetByStatus(ctx context.Context, status inventory.ItemStatus) ([]*inventory.Item, error) {
 
-	sql := `select * from items where status = $1`
+	sql := `
+		select * from items i
+			left join item_locks l on i.id = l.item_id
+		where i.status = $1
+	`
 
 	return r.getItems(ctx, sql, status)
 }

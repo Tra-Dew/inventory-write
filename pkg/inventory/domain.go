@@ -15,17 +15,9 @@ const (
 	// ItemAvailable is set when an item is available to be traded
 	ItemAvailable ItemStatus = "Available"
 
-	// ItemPendingCreateDispatch is set when an item has been created
-	// but has not yet dispached an event
-	ItemPendingCreateDispatch ItemStatus = "PendingCreateDispatch"
-
 	// ItemPendingUpdateDispatch is set when an item has been updated
 	// but has not yet dispached an event
 	ItemPendingUpdateDispatch ItemStatus = "PendingUpdateDispatch"
-
-	// ItemPendingLockDispatch is set when an item has been locked
-	// but has not yet dispached an event
-	ItemPendingLockDispatch ItemStatus = "PendingLockDispatch"
 )
 
 // ItemName ...
@@ -205,7 +197,7 @@ func (item *Item) Lock(lockedBy string, quantity int64) error {
 		Quantity: itemQuantity,
 	})
 
-	item.Status = ItemPendingLockDispatch
+	item.Status = ItemPendingUpdateDispatch
 	item.UpdatedAt = time.Now()
 
 	return nil

@@ -27,8 +27,14 @@ func main() {
 		Run:   cmd.ServerGRPC,
 	}
 
+	itemUpdatedWorker := &cobra.Command{
+		Use:   "dispatch-item-updated-worker",
+		Short: "Starts dispatch-item-updated-worker",
+		Run:   cmd.DispatchItemUpdated,
+	}
+
 	root.PersistentFlags().String("settings", "./settings.yml", "path to settings.yaml config file")
-	root.AddCommand(api, grpc)
+	root.AddCommand(api, grpc, itemUpdatedWorker)
 
 	root.Execute()
 }

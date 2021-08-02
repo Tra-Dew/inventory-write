@@ -33,11 +33,5 @@ type PostgresConfig struct {
 
 // Events ...
 type Events struct {
-	ItemsCreated        string `yaml:"items-created"`
-	ItemsUpdated        string `yaml:"items-updated"`
-	ItemsLockCompleted  string `yaml:"items-lock-completed"`
-	ItemsTradeCompleted string `yaml:"items-trade-completed"`
-
-	TradeCreated  string `yaml:"trade-created"`
-	TradeAccepted string `yaml:"trade-accepted"`
+	ItemsUpdated string `yaml:"items-updated"`
 }

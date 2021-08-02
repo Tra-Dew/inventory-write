@@ -31,7 +31,7 @@ func (s *service) CreateItems(ctx context.Context, userID, correlationID string,
 			it.Name,
 			it.Description,
 			it.Quantity,
-			ItemPendingCreateDispatch,
+			ItemPendingUpdateDispatch,
 		)
 
 		if err != nil {
