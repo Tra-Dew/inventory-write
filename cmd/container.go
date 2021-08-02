@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/d-leme/tradew-inventory-write/pkg/core"
 	"github.com/d-leme/tradew-inventory-write/pkg/inventory"
@@ -39,15 +38,21 @@ func NewContainer(settings *core.Settings) *Container {
 
 	container.DBConnPool = connectPostgres(settings.Postgres)
 
-	container.SQS = session.Must(session.NewSession(&aws.Config{
-		Region:   aws.String(settings.SQS.Region),
-		Endpoint: aws.String(settings.SQS.Endpoint),
-	}))
+	container.SQS = core.NewSession(
+		settings.SQS.Region,
+		settings.SQS.Endpoint,
+		settings.SQS.Path,
+		settings.SQS.Profile,
+		settings.SQS.Fake,
+	)
 
-	container.SNS = session.Must(session.NewSession(&aws.Config{
-		Region:   aws.String(settings.SNS.Region),
-		Endpoint: aws.String(settings.SNS.Endpoint),
-	}))
+	container.SNS = core.NewSession(
+		settings.SNS.Region,
+		settings.SNS.Endpoint,
+		settings.SNS.Path,
+		settings.SNS.Profile,
+		settings.SNS.Fake,
+	)
 
 	container.Producer = core.NewMessageBrokerProducer(container.SNS)
 

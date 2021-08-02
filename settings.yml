@@ -3,10 +3,12 @@ grpc_port: 9005
 jwt:
   secret: "QuFsuM4dNSHfsfyjrCQeKAEE4KRj5sQR6Ez4Y6kcCh4XBgzJ43dHSm9mb9Y6kBBfUajgxjAbXRX4FttD"
 sqs:
-  region: us-west2
+  fake: true
+  region: us-west-2
   endpoint: http://localhost:4566
 sns:
-  region: us-west2
+  fake: true
+  region: us-west-2
   endpoint: http://localhost:4566
 postgres:
   host: localhost

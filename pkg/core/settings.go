@@ -20,6 +20,9 @@ type JWT struct {
 type SessionConfig struct {
 	Region   string `yaml:"region"`
 	Endpoint string `yaml:"endpoint"`
+	Path     string `yaml:"path"`
+	Profile  string `yaml:"profile"`
+	Fake     bool   `yaml:"fake"`
 }
 
 // PostgresConfig ...
