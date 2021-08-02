@@ -15,7 +15,4 @@ postgres:
   port: 5432
   database: inventory
 events:
-  items-created: items-created
   items-updated: items-updated
-  items-lock-requested: items-lock-requested
-  items-lock-completed: items-lock-completed
