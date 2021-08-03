@@ -36,11 +36,12 @@ func (s *serviceTestSuite) SetupTest() {
 	s.service = inventory.NewService(s.repository)
 }
 
-var anyItem = testifyMock.AnythingOfType("[]*inventory.Item")
+var anyItems = testifyMock.AnythingOfType("[]*inventory.Item")
+var anyStrings = testifyMock.AnythingOfType("[]string")
 
 func (s *serviceTestSuite) TestCreateItems() {
 
-	s.repository.On("InsertBulk").Return(nil)
+	s.repository.On("InsertBulk", anyItems).Return(nil)
 
 	correlationID := uuid.NewString()
 	userID := uuid.NewString()
@@ -61,7 +62,7 @@ func (s *serviceTestSuite) TestCreateItems() {
 
 func (s *serviceTestSuite) TestCreateItemsInvalidItem() {
 
-	s.repository.On("InsertBulk").Return(nil)
+	s.repository.On("InsertBulk", anyItems).Return(nil)
 
 	correlationID := uuid.NewString()
 	userID := uuid.NewString()
@@ -112,7 +113,7 @@ func (s *serviceTestSuite) TestUpdateItems() {
 	}
 
 	s.repository.On("Get", ids).Return(items, nil)
-	s.repository.On("UpdateBulk", anyItem).Return(nil)
+	s.repository.On("UpdateBulk", anyItems).Return(nil)
 
 	itemModels := make([]*inventory.UpdateItemModel, len(items))
 
@@ -161,7 +162,7 @@ func (s *serviceTestSuite) TestUpdateItemsInvalidItem() {
 	}
 
 	s.repository.On("Get", ids).Return(items, nil)
-	s.repository.On("UpdateBulk", anyItem).Return(nil)
+	s.repository.On("UpdateBulk", anyItems).Return(nil)
 
 	itemModels := make([]*inventory.UpdateItemModel, len(items))
 
@@ -224,7 +225,7 @@ func (s *serviceTestSuite) TestLockItemsInvalidWantedItem() {
 
 	s.repository.On("Get", offeredIDs).Return(offeredItems, nil)
 	s.repository.On("Get", wantedIDs).Return(wantedItems, nil)
-	s.repository.On("UpdateBulk", anyItem).Return(nil)
+	s.repository.On("UpdateBulk", anyItems).Return(nil)
 
 	req := &inventory.LockItemsRequest{
 		LockedBy:           lockedBy,
@@ -275,7 +276,7 @@ func (s *serviceTestSuite) TestLockItems() {
 
 	s.repository.On("Get", offeredIDs).Return(offeredItems, nil)
 	s.repository.On("Get", wantedIDs).Return(wantedItems, nil)
-	s.repository.On("UpdateBulk", anyItem).Return(nil)
+	s.repository.On("UpdateBulk", anyItems).Return(nil)
 
 	req := &inventory.LockItemsRequest{
 		LockedBy:           lockedBy,
@@ -362,7 +363,7 @@ func (s *serviceTestSuite) TestTradeItems() {
 		wantedItemIDs[i] = item.ID
 		wantedItemsModels[i] = &inventory.TradeItemModel{
 			ID:       item.ID,
-			Quantity: int64(item.TotalQuantity - 1),
+			Quantity: int64(item.TotalQuantity),
 		}
 	}
 
@@ -382,13 +383,35 @@ func (s *serviceTestSuite) TestTradeItems() {
 			}
 		}
 
-		return countOffered == 4 && countWanted == 4
+		return countOffered == 2 && countWanted == 0
+	})).Return(nil)
+	s.repository.On("InsertBulk", testifyMock.MatchedBy(func(items []*inventory.Item) bool {
+		var (
+			countOffered, countWanted int
+		)
+
+		for _, item := range items {
+			if item.OwnerID == wantedItemsUserID {
+				countWanted++
+			}
+			if item.OwnerID == offeredItemsUserID {
+				countOffered++
+			}
+		}
+
+		return countOffered == 2 && countWanted == 2
+	})).Return(nil)
+
+	s.repository.On("DeleteBulk", testifyMock.MatchedBy(func(ids []string) bool {
+		return len(ids) == len(wantedItems)
 	})).Return(nil)
 
 	req := &inventory.TradeItemsRequest{
-		TradeID:      tradeID,
-		OfferedItems: offeredItemsModels,
-		WantedItems:  wantedItemsModels,
+		TradeID:            tradeID,
+		OwnerID:            offeredItemsUserID,
+		WantedItemsOwnerID: wantedItemsUserID,
+		OfferedItems:       offeredItemsModels,
+		WantedItems:        wantedItemsModels,
 	}
 
 	err := s.service.TradeItems(s.ctx, req)
@@ -396,6 +419,8 @@ func (s *serviceTestSuite) TestTradeItems() {
 	s.assert.NoError(err)
 	s.repository.AssertNumberOfCalls(s.T(), "Get", 2)
 	s.repository.AssertNumberOfCalls(s.T(), "UpdateBulk", 1)
+	s.repository.AssertNumberOfCalls(s.T(), "InsertBulk", 1)
+	s.repository.AssertNumberOfCalls(s.T(), "DeleteBulk", 1)
 }
 
 func createItemModel() *inventory.CreateItemModel {

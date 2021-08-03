@@ -19,7 +19,7 @@ func NewRepository() inventory.Repository {
 
 // InsertBulk ...
 func (r *RepositoryMock) InsertBulk(ctx context.Context, items []*inventory.Item) error {
-	args := r.Mock.Called()
+	args := r.Mock.Called(items)
 
 	arg0 := args.Get(0)
 	if arg0 != nil {
@@ -43,7 +43,7 @@ func (r *RepositoryMock) UpdateBulk(ctx context.Context, items []*inventory.Item
 
 // DeleteBulk ...
 func (r *RepositoryMock) DeleteBulk(ctx context.Context, ids []string) error {
-	args := r.Mock.Called()
+	args := r.Mock.Called(ids)
 
 	arg0 := args.Get(0)
 	if arg0 != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/d-leme/tradew-inventory-write/pkg/core"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/sirupsen/logrus"
 )
 
 type service struct {
@@ -22,6 +23,12 @@ func NewService(repository Repository) Service {
 
 // CreateItems ...
 func (s *service) CreateItems(ctx context.Context, userID, correlationID string, req *CreateItemsRequest) error {
+
+	fields := logrus.Fields{
+		"user_id":        userID,
+		"correlation_id": correlationID,
+	}
+
 	items := make([]*Item, len(req.Items))
 
 	for i, it := range req.Items {
@@ -35,6 +42,7 @@ func (s *service) CreateItems(ctx context.Context, userID, correlationID string,
 		)
 
 		if err != nil {
+			logrus.WithError(err).WithFields(fields).Error("error creating new item")
 			return err
 		}
 
@@ -42,14 +50,22 @@ func (s *service) CreateItems(ctx context.Context, userID, correlationID string,
 	}
 
 	if err := s.repository.InsertBulk(ctx, items); err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while inserting new items")
 		return err
 	}
+
+	logrus.WithFields(fields).Info("created new items successfully")
 
 	return nil
 }
 
 // UpdateItems ...
 func (s *service) UpdateItems(ctx context.Context, userID, correlationID string, req *UpdateItemsRequest) error {
+
+	fields := logrus.Fields{
+		"user_id":        userID,
+		"correlation_id": correlationID,
+	}
 
 	itemsToUpdate := make(map[string]*UpdateItemModel, len(req.Items))
 	ids := make([]string, len(req.Items))
@@ -59,9 +75,12 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 		itemsToUpdate[item.ID] = item
 	}
 
+	fields["ids"] = ids
+
 	items, err := s.repository.Get(ctx, &userID, ids)
 
 	if err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while getting items")
 		return err
 	}
 
@@ -71,19 +90,29 @@ func (s *service) UpdateItems(ctx context.Context, userID, correlationID string,
 		err := item.Update(itemToUpdate.Name, itemToUpdate.Description, itemToUpdate.Quantity)
 
 		if err != nil {
+			logrus.WithError(err).WithFields(fields).Error("validation error on item")
 			return err
 		}
 	}
 
 	if err := s.repository.UpdateBulk(ctx, items); err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while updating items")
 		return err
 	}
+
+	logrus.WithFields(fields).Info("updated all items succefully")
 
 	return nil
 }
 
 // LockItems ...
 func (s *service) LockItems(ctx context.Context, req *LockItemsRequest) error {
+
+	fields := logrus.Fields{
+		"locked_by":             req.LockedBy,
+		"owner_id":              req.OwnerID,
+		"wanted_items_owner_id": req.WantedItemsOwnerID,
+	}
 
 	wantedIDs := make([]string, len(req.WantedItems))
 	for i, item := range req.WantedItems {
@@ -93,12 +122,13 @@ func (s *service) LockItems(ctx context.Context, req *LockItemsRequest) error {
 	// getting wanted items and validating whether
 	// all items exists and they all belong to the same user
 	wantedItems, err := s.repository.Get(ctx, &req.WantedItemsOwnerID, wantedIDs)
-
 	if err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while getting wanted items")
 		return err
 	}
 
 	if len(wantedItems) != len(req.WantedItems) {
+		logrus.WithError(core.ErrInvalidWantedItems).WithFields(fields).Error("tried to select invalid wanted items")
 		return core.ErrInvalidWantedItems
 	}
 
@@ -113,6 +143,7 @@ func (s *service) LockItems(ctx context.Context, req *LockItemsRequest) error {
 	items, err := s.repository.Get(ctx, &req.OwnerID, ids)
 
 	if err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while getting offered items")
 		return err
 	}
 
@@ -120,13 +151,17 @@ func (s *service) LockItems(ctx context.Context, req *LockItemsRequest) error {
 		itemToUpdate := itemsToLock[item.ID]
 
 		if err := item.Lock(req.LockedBy, itemToUpdate.Quantity); err != nil {
+			logrus.WithError(err).WithFields(fields).Error("error item lock failed")
 			return err
 		}
 	}
 
 	if err := s.repository.UpdateBulk(ctx, items); err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while updating items")
 		return err
 	}
+
+	logrus.WithFields(fields).Info("all items updated successfully")
 
 	return nil
 }
@@ -136,6 +171,12 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 	// TODO: refactor this method and send this to trade service
 	// use the inventory api only as a crud like service
 
+	fields := logrus.Fields{
+		"locked_by":             req.TradeID,
+		"owner_id":              req.OwnerID,
+		"wanted_items_owner_id": req.WantedItemsOwnerID,
+	}
+
 	// Getting all offered items
 	offeredIDs := make([]string, len(req.OfferedItems))
 	for i, item := range req.OfferedItems {
@@ -144,6 +185,7 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 
 	offeredItems, err := s.repository.Get(ctx, &req.OwnerID, offeredIDs)
 	if err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while getting offered items")
 		return err
 	}
 
@@ -157,6 +199,7 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 
 	wantedItems, err := s.repository.Get(ctx, &req.WantedItemsOwnerID, wantedIDs)
 	if err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while getting wanted items")
 		return err
 	}
 
@@ -184,6 +227,7 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 		)
 
 		if err != nil {
+			logrus.WithError(err).WithFields(fields).Error("error while creating new item to add")
 			return err
 		}
 
@@ -200,6 +244,11 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 		wantedQuantity := ItemQuantity(wantedQuantities[item.ID])
 
 		if item.TotalQuantity < wantedQuantity {
+			logrus.
+				WithError(core.ErrValidationFailed).
+				WithFields(fields).
+				Error("wanted quantity bigger than total quantity")
+
 			return core.ErrValidationFailed
 		}
 
@@ -215,6 +264,7 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 		)
 
 		if err != nil {
+			logrus.WithError(err).WithFields(fields).Error("error while creating new item to add")
 			return err
 		}
 
@@ -229,16 +279,25 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 
 	//TODO: make this operationg a single transaction
 	if err := s.repository.UpdateBulk(ctx, itemsToUpdate); err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while updating items")
 		return err
 	}
+
+	logrus.WithFields(fields).Error("items updated")
 
 	if err := s.repository.InsertBulk(ctx, itemsToAdd); err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while inserting items")
 		return err
 	}
 
+	logrus.WithFields(fields).Error("items inserted")
+
 	if err := s.repository.DeleteBulk(ctx, itemsToDelete); err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while deleting items")
 		return err
 	}
+
+	logrus.WithFields(fields).Error("items deleted")
 
 	return nil
 }
@@ -246,9 +305,15 @@ func (s *service) TradeItems(ctx context.Context, req *TradeItemsRequest) error 
 // DeleteItems ...
 func (s *service) DeleteItems(ctx context.Context, userID, correlationID string, req *DeleteItemsRequest) error {
 
-	items, err := s.repository.Get(ctx, &userID, req.IDs)
+	fields := logrus.Fields{
+		"ids":            req.IDs,
+		"owner_id":       userID,
+		"correlation_id": correlationID,
+	}
 
+	items, err := s.repository.Get(ctx, &userID, req.IDs)
 	if err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while getting items")
 		return err
 	}
 
@@ -258,8 +323,11 @@ func (s *service) DeleteItems(ctx context.Context, userID, correlationID string,
 	}
 
 	if err := s.repository.DeleteBulk(ctx, ids); err != nil {
+		logrus.WithError(err).WithFields(fields).Error("error while deleting items")
 		return err
 	}
+
+	logrus.WithFields(fields).Info("deleted all items sucessfully")
 
 	return nil
 }

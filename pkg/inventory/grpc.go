@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/d-leme/tradew-inventory-write/pkg/inventory/proto"
+	"github.com/sirupsen/logrus"
 )
 
 type grpcService struct {
@@ -21,6 +22,8 @@ func NewGRPCService(service Service) proto.InventoryServiceServer {
 
 // LockItems ...
 func (s *grpcService) LockItems(ctx context.Context, req *proto.LockItemsRequest) (*proto.Empty, error) {
+
+	logrus.Info("lock items called by GRPC")
 
 	servReq := &LockItemsRequest{
 		OwnerID:            req.OwnerID,
@@ -53,6 +56,8 @@ func (s *grpcService) LockItems(ctx context.Context, req *proto.LockItemsRequest
 
 // TradeItems ...
 func (s *grpcService) TradeItems(ctx context.Context, req *proto.TradeItemsRequest) (*proto.Empty, error) {
+
+	logrus.Info("trade items called by GRPC")
 
 	servReq := &TradeItemsRequest{
 		TradeID:            req.TradeID,
