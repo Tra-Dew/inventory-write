@@ -11,10 +11,10 @@ sns:
   region: us-west-2
   endpoint: http://localhost:4566
 postgres:
-  host: localhost
-  user: postgres
-  password: admin
+  host: tradew-rds.cbkii6q0lg0j.us-west-2.rds.amazonaws.com
+  user: myuser
+  password: 123123123
   port: 5432
-  database: inventory
+  database: tradew
 events:
   items-updated: items-updated
